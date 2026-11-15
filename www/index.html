@@ -406,8 +406,8 @@ add(){
   ${tabs}
   <form id="listForm" class="field">
     <label for="listIn">Englische Wörter</label>
-    <textarea class="input" id="listIn" rows="5" autocapitalize="none" spellcheck="false" placeholder="ein Wort pro Zeile, z. B.&#10;reluctant&#10;to cope&#10;sturdy – stabil" style="min-height:130px;font-size:16px"></textarea>
-    <p class="small muted" style="line-height:1.45">Ein Wort pro Zeile oder mit Komma getrennt. Eigene Übersetzung optional mit „ – “ dahinter. Max. ${QMAX} auf einmal.</p>
+    <textarea class="input" id="listIn" rows="5" autocapitalize="none" spellcheck="false" placeholder="ein Wort pro Zeile, z. B.&#10;reluctant&#10;to cope&#10;sturdy / stabil" style="min-height:130px;font-size:16px"></textarea>
+    <p class="small muted" style="line-height:1.45">Ein Wort pro Zeile oder mit Komma getrennt. Eigene Übersetzung optional dahinter, getrennt mit „/“ oder „ – “ (z. B. sturdy / stabil, robust). Max. ${QMAX} auf einmal.</p>
     <button class="btn full" type="submit">Hinzufügen</button>
   </form>
   ${Q.length ? `<div class="stack" id="qhead" style="gap:10px;padding-top:6px">${queueHead()}</div>
@@ -597,16 +597,24 @@ async function doLookup(raw){
 /* ============ Liste einfügen → Vorschläge prüfen ============ */
 const QMAX = 100;
 function parseList(text){
+  // Trennzeichen zwischen Englisch und eigener deutscher Übersetzung:
+  // „ – “ / „ - “ / „ = “ (mit Leerzeichen), „/“ (mit oder ohne Leerzeichen), „: “ oder Tabulator
+  const sep = /\t|\s[-–=]\s|\s*\/\s*|\s*:\s+/;
   let lines = String(text||'').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-  const sep = /\t|\s[-–=]\s|\s*:\s+/;
-  // Nur eine Zeile ohne Trennzeichen für eine eigene Übersetzung → Komma/Semikolon trennt Wörter
-  if(lines.length === 1 && !sep.test(lines[0])) lines = lines[0].split(/[,;]/).map(l => l.trim()).filter(Boolean);
+  if(lines.length === 1){
+    const chunks = lines[0].split(/[,;]/).map(l => l.trim()).filter(Boolean);
+    const withSep = chunks.filter(c => sep.test(c)).length;
+    // eine Zeile: „happy, sad“ → zwei Wörter; „happy/froh, sad/traurig“ → zwei Paare;
+    // „sturdy – stabil, robust“ → ein Wort mit zwei Übersetzungen
+    if(withSep === 0 || (chunks.length > 1 && withSep === chunks.length)) lines = chunks;
+  }
   return lines.map(l => {
     l = l.replace(/^[-*•·\d.)\s]+(?=\S)/, '');           // Aufzählungszeichen / Nummern vorne weg
-    const parts = l.split(sep);
-    const en = parts[0].trim().replace(/\s+/g,' ');
-    const de = parts.length > 1 ? parts.slice(1).join(' ').split(/[,;\/]/).map(x => x.trim()).filter(Boolean) : null;
-    return { en, de };
+    const m = l.match(sep);
+    const en = (m ? l.slice(0, m.index) : l).trim().replace(/\s+/g,' ');
+    const rest = m ? l.slice(m.index + m[0].length) : '';
+    const de = m ? rest.split(/[,;\/]/).map(x => x.trim()).filter(Boolean) : null;
+    return { en, de: de && de.length ? de : null };
   }).filter(x => x.en && x.en.length <= 60);
 }
 function queueAdd(text){
