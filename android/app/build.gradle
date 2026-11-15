@@ -18,22 +18,25 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
-    // Fester Schlüssel im Repo: Jeder Build ist gleich signiert, Updates installieren sich über die alte Version.
-    // Nur für die private Nutzung gedacht – für den Play Store bräuchte es einen geheimen Schlüssel.
+    // Der Signierschlüssel liegt NICHT im Repo. Der GitHub-Build holt ihn aus den Secrets
+    // ANDROID_KEYSTORE_BASE64 und ANDROID_KEYSTORE_PASSWORD (siehe .github/workflows/android.yml).
+    // Lokal ohne diese Umgebungsvariablen wird die Release-APK unsigniert gebaut.
+    def ksFile = System.getenv("ANDROID_KEYSTORE_FILE")
+    def ksPass = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+    def hasKey = ksFile && ksPass && file(ksFile).exists()
     signingConfigs {
-        vocab {
-            storeFile file('vocab.keystore')
-            storePassword 'vocabapp'
-            keyAlias 'vocab'
-            keyPassword 'vocabapp'
+        if (hasKey) {
+            vocab {
+                storeFile file(ksFile)
+                storePassword ksPass
+                keyAlias 'vocab'
+                keyPassword ksPass
+            }
         }
     }
     buildTypes {
-        debug {
-            signingConfig signingConfigs.vocab
-        }
         release {
-            signingConfig signingConfigs.vocab
+            if (hasKey) signingConfig signingConfigs.vocab
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

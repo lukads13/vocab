@@ -33,7 +33,16 @@ Der Token steckt dann in der APK und kann nur dieses Repo lesen. Ist das Repo ö
 | `capacitor.config.json` | App-Name, ID, Benachrichtigungs-Icon |
 | `.github/workflows/android.yml` | baut die APK bei jedem Push und hängt sie an ein Release |
 
-Signiert wird mit dem Schlüssel `android/app/vocab.keystore`, der im Repo liegt. Damit sind alle Builds gleich signiert, und Updates lassen sich drüberinstallieren. Für die private Nutzung passt das so. Für eine Veröffentlichung im Play Store müsste der Schlüssel geheim (als GitHub Secret) liegen.
+Signiert wird mit einem eigenen Schlüssel, der **nicht** im Repo liegt, sondern in zwei GitHub Secrets (*Settings → Secrets and variables → Actions*):
+
+| Secret | Inhalt |
+|---|---|
+| `ANDROID_KEYSTORE_BASE64` | die Schlüsseldatei `vocab-release.jks`, Base64-kodiert |
+| `ANDROID_KEYSTORE_PASSWORD` | das Passwort dazu (Alias: `vocab`) |
+
+Alle Builds sind damit gleich signiert, und Updates lassen sich drüberinstallieren. **Die Schlüsseldatei und das Passwort gut aufheben** (z. B. im Passwort-Manager): GitHub zeigt Secrets nie wieder an. Ohne den Schlüssel lassen sich keine Updates mehr bauen, die über die installierte App passen.
+
+Neu eintragen, z. B. nach Verlust des Secrets: `base64 -w0 vocab-release.jks` (macOS: `base64 -i vocab-release.jks`) und die Ausgabe als `ANDROID_KEYSTORE_BASE64` speichern.
 
 ## Lokal entwickeln
 

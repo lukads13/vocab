@@ -9,3 +9,7 @@ android/capacitor.settings.gradle
 android/app/capacitor.build.gradle
 *.iml
 .idea/
+
+# Signierschlüssel nie committen
+*.jks
+*.keystore
