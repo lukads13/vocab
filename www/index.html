@@ -396,8 +396,26 @@ add(){
   let body = '';
   if(L && L.status === 'loading') body = `<div class="card row" style="gap:12px"><div class="spinner"></div><p>Schlage „${esc(L.word)}“ nach …</p></div>`;
   if(L && L.status === 'done') body = entryEditor(L.data, L.note);
+  const Q = db.queue || [];
+  const mode = ui.addMode || (Q.length ? 'list' : 'single');
+  const tabs = `<div class="seg" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+    <button data-act="addMode" data-m="single" aria-pressed="${mode === 'single'}">Einzelnes Wort</button>
+    <button data-act="addMode" data-m="list" aria-pressed="${mode === 'list'}">Liste${Q.length ? ` (${Q.length})` : ''}</button></div>`;
+  if(mode === 'list') return `<div class="stack" style="gap:14px">
+  <div><h1>Wörter hinzufügen</h1><p class="muted" style="margin-top:6px;line-height:1.45;font-size:14px">Liste einfügen – pro Wort kommt ein Vorschlag, den du übernehmen oder anpassen kannst.</p></div>
+  ${tabs}
+  <form id="listForm" class="field">
+    <label for="listIn">Englische Wörter</label>
+    <textarea class="input" id="listIn" rows="5" autocapitalize="none" spellcheck="false" placeholder="ein Wort pro Zeile, z. B.&#10;reluctant&#10;to cope&#10;sturdy – stabil" style="min-height:130px;font-size:16px"></textarea>
+    <p class="small muted" style="line-height:1.45">Ein Wort pro Zeile oder mit Komma getrennt. Eigene Übersetzung optional mit „ – “ dahinter. Max. ${QMAX} auf einmal.</p>
+    <button class="btn full" type="submit">Hinzufügen</button>
+  </form>
+  ${Q.length ? `<div class="stack" id="qhead" style="gap:10px;padding-top:6px">${queueHead()}</div>
+  <div class="stack" style="gap:10px">${Q.map(queueCard).join('')}</div>` : ''}
+  </div>`;
   return `<div class="stack" style="gap:14px">
   <div><h1>Wort hinzufügen</h1><p class="muted" style="margin-top:6px;line-height:1.45;font-size:14px">Englisches Wort eingeben – Übersetzung und Wörterbuch-Kontext kommen automatisch. Du kannst alles vor dem Speichern anpassen.</p></div>
+  ${tabs}
   <form id="lookupForm" class="field">
     <label for="wordIn">Englisches Wort</label>
     <div class="row" style="gap:8px"><input class="input" id="wordIn" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="z. B. eager" value="${esc(L ? L.word : '')}" enterkeyhint="search">
@@ -531,10 +549,7 @@ async function translate(text){
   (j.matches||[]).filter(m => Number(m.quality||0) >= 50 || m.quality === undefined).forEach(m => add(m.translation));
   return out;
 }
-async function doLookup(raw){
-  const word = raw.trim().replace(/\s+/g,' ');
-  if(!word) return;
-  ui.lookup = {status:'loading', word}; render();
+async function lookupData(word){
   const base = word.toLowerCase().replace(/^to\s+/,'');
   const [dict, tr] = await Promise.allSettled([
     fetchJSON(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(base)}`),
@@ -567,9 +582,107 @@ async function doLookup(raw){
   if(offline) note = 'Keine Internetverbindung – trag die Übersetzung selbst ein, das Wort wird trotzdem gespeichert.';
   else if(dict.status === 'rejected' && !d.de.length) note = 'Nichts gefunden. Stimmt die Schreibweise? Du kannst die Übersetzung auch selbst eintragen.';
   else if(dict.status === 'rejected') note = 'Kein Wörterbuch-Eintrag gefunden (z. B. bei Redewendungen) – die Übersetzung ist trotzdem da.';
+  return { d, note };
+}
+async function doLookup(raw){
+  const word = raw.trim().replace(/\s+/g,' ');
+  if(!word) return;
+  ui.lookup = {status:'loading', word}; render();
+  const { d, note } = await lookupData(word);
   if(!ui.lookup || ui.lookup.word !== word) return;
   ui.lookup = {status:'done', word, data:d, note};
   if(ui.screen === 'add') render();
+}
+
+/* ============ Liste einfügen → Vorschläge prüfen ============ */
+const QMAX = 100;
+function parseList(text){
+  let lines = String(text||'').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const sep = /\t|\s[-–=]\s|\s*:\s+/;
+  // Nur eine Zeile ohne Trennzeichen für eine eigene Übersetzung → Komma/Semikolon trennt Wörter
+  if(lines.length === 1 && !sep.test(lines[0])) lines = lines[0].split(/[,;]/).map(l => l.trim()).filter(Boolean);
+  return lines.map(l => {
+    l = l.replace(/^[-*•·\d.)\s]+(?=\S)/, '');           // Aufzählungszeichen / Nummern vorne weg
+    const parts = l.split(sep);
+    const en = parts[0].trim().replace(/\s+/g,' ');
+    const de = parts.length > 1 ? parts.slice(1).join(' ').split(/[,;\/]/).map(x => x.trim()).filter(Boolean) : null;
+    return { en, de };
+  }).filter(x => x.en && x.en.length <= 60);
+}
+function queueAdd(text){
+  const items = parseList(text);
+  db.queue = db.queue || [];
+  let added = 0, skipped = 0;
+  for(const it of items){
+    if(findWord(it.en) || db.queue.some(q => norm(q.en) === norm(it.en))){ skipped++; continue; }
+    if(db.queue.length >= QMAX){ skipped++; continue; }
+    db.queue.push({ id:uid(), en:it.en, deUser:it.de, status:'loading', data:null, note:'', deText: it.de ? it.de.join(', ') : '' });
+    added++;
+  }
+  save();
+  toast(added ? `${added} Wörter werden nachgeschlagen${skipped ? ` · ${skipped} übersprungen (schon vorhanden)` : ''}` : (skipped ? 'Alle Wörter sind schon vorhanden' : 'Keine Wörter erkannt'));
+  processQueue();
+}
+const inflight = new Set();
+function processQueue(){
+  const todo = (db.queue||[]).filter(q => q.status === 'loading' && !inflight.has(q.id));
+  for(const q of todo){
+    if(inflight.size >= 3) break;
+    inflight.add(q.id);
+    lookupData(q.en).then(({ d, note }) => {
+      const cur = (db.queue||[]).find(x => x.id === q.id); if(!cur) return;
+      cur.data = d; cur.note = note; cur.status = 'done';
+      if(!cur.deUser && !cur.deTouched) cur.deText = d.de.join(', ');
+      if(cur.deUser) cur.data.de = cur.deUser;
+      save();
+    }).catch(() => {
+      const cur = (db.queue||[]).find(x => x.id === q.id); if(!cur) return;
+      cur.status = 'done'; cur.data = { en:cur.en, de:cur.deUser||[], ipa:'', pos:'', def:'', defs:[], ex:'', exDe:'', syn:[], audio:'' };
+      cur.note = 'Nachschlagen fehlgeschlagen – trag die Übersetzung selbst ein.'; save();
+    }).finally(() => { inflight.delete(q.id); updateQueueCard(q.id); updateQueueHead(); processQueue(); });
+  }
+}
+function queueHead(){
+  const Q = db.queue||[], ready = Q.filter(q => q.status === 'done' && q.deText.trim()).length, loading = Q.filter(q => q.status === 'loading').length;
+  return `<div class="row between" style="align-items:center">
+      <div><h2>Vorschläge prüfen</h2><p class="small muted" style="margin-top:2px">${Q.length} Wörter${loading ? ` · ${loading} werden nachgeschlagen` : ''}</p></div>
+      <button class="link" data-act="qClear">Alle verwerfen</button>
+    </div>
+    <button class="btn full" data-act="qAcceptAll" ${ready ? '' : 'disabled'}>${ready ? `Alle ${ready} übernehmen` : 'Alle übernehmen'}</button>`;
+}
+function queueCard(q){
+  const d = q.data || {};
+  const def = d.defs && d.defs[0] ? d.defs[0].def : d.def;
+  return `<div class="card stack" id="q-${q.id}" style="gap:10px;padding:16px">
+    <div class="row between" style="align-items:flex-start">
+      <div class="row wrap" style="gap:8px;align-items:baseline;min-width:0"><span style="font-size:19px;font-weight:700">${esc(q.en)}</span>${d.ipa ? `<span class="small muted">${esc(d.ipa)}</span>` : ''}${d.pos ? `<span class="chip">${esc(d.pos)}</span>` : ''}</div>
+      <button class="link" style="min-height:36px;color:var(--muted);display:flex;align-items:center" data-act="qRemove" data-id="${q.id}" aria-label="${esc(q.en)} verwerfen">${ico('x',20)}</button>
+    </div>
+    ${q.status === 'loading' ? `<div class="row" style="gap:10px"><div class="spinner"></div><p class="small muted">Schlage nach …</p></div>` : `
+    ${q.note ? `<p class="small" style="background:var(--new-bg);color:var(--new-fg);padding:8px 10px;border-radius:10px;line-height:1.4">${esc(q.note)}</p>` : ''}
+    <label class="sr" for="qde-${q.id}">Deutsch für ${esc(q.en)}</label>
+    <input class="input" id="qde-${q.id}" data-qde="${q.id}" value="${esc(q.deText)}" placeholder="deutsche Bedeutung(en), mit Komma getrennt" style="height:46px;font-size:16px">
+    ${def ? `<p class="small muted" style="line-height:1.45">${esc(def)}</p>` : ''}
+    ${d.ex ? `<div class="ctx" style="padding:10px 12px"><p class="small" style="font-weight:500;line-height:1.45">${esc(d.ex)}</p>${d.exDe ? `<p class="small muted" style="font-style:italic;line-height:1.45">${esc(d.exDe)}</p>` : ''}</div>` : ''}
+    <button class="btn line" style="height:44px" data-act="qAccept" data-id="${q.id}">${ico('check',18,'style="vertical-align:-4px;margin-right:6px"')}Übernehmen</button>`}
+  </div>`;
+}
+function updateQueueCard(id){
+  const el = document.getElementById('q-' + id), q = (db.queue||[]).find(x => x.id === id);
+  if(!el || !q) return;
+  if(el.contains(document.activeElement)) return;  // nicht reinfunken, während jemand tippt
+  el.outerHTML = queueCard(q);
+}
+function updateQueueHead(){ const h = document.getElementById('qhead'); if(h) h.innerHTML = queueHead(); if(!(db.queue||[]).length && ui.screen === 'add') render(); }
+function acceptQueued(q){
+  const de = String(q.deText||'').split(/[,;]/).map(s => s.trim()).filter(Boolean);
+  if(!de.length) return false;
+  if(!findWord(q.en)){
+    const d = q.data || { en:q.en };
+    db.words.push(makeWord({ ...d, en:q.en, de }));
+  }
+  db.queue = db.queue.filter(x => x.id !== q.id);
+  return true;
 }
 function speak(w, audio){
   if(audio){ const a = new Audio(audio); a.play().catch(() => tts(w)); return; }
@@ -764,6 +877,24 @@ const ACT = {
   reveal: () => { ui.quiz.revealed = true; renderQuiz(); },
   flip: d => { answer(d.ok === '1'); renderQuiz(); },
   next: () => nextQ(),
+  addMode: d => { ui.addMode = d.m; render(); },
+  qRemove: d => { db.queue = (db.queue||[]).filter(q => q.id !== d.id); save(); const el = document.getElementById('q-' + d.id); if(el) el.remove(); updateQueueHead(); },
+  qAccept: d => {
+    const q = (db.queue||[]).find(x => x.id === d.id); if(!q) return;
+    if(!acceptQueued(q)){ toast('Bitte eine deutsche Bedeutung eintragen'); const i = document.getElementById('qde-' + q.id); if(i) i.focus(); return; }
+    save(); syncNotifications(); toast(`„${q.en}“ gespeichert`);
+    const el = document.getElementById('q-' + d.id); if(el) el.remove(); updateQueueHead();
+  },
+  qAcceptAll: () => {
+    const ready = (db.queue||[]).filter(q => q.status === 'done' && q.deText.trim());
+    ready.forEach(acceptQueued); save(); syncNotifications();
+    const left = (db.queue||[]).length;
+    toast(`${ready.length} Wörter gespeichert${left ? ` · ${left} noch offen` : ''}`); render();
+  },
+  qClear: () => {
+    if(!ui.qClearArm){ ui.qClearArm = true; toast('Nochmal tippen, um alle Vorschläge zu verwerfen'); setTimeout(() => { ui.qClearArm = false; }, 3000); return; }
+    ui.qClearArm = false; db.queue = []; save(); render();
+  },
   updCheck: () => checkUpdate(true),
   updOpen: () => openUrl(db.update && db.update.url),
   updLater: () => { db.update.dismissed = db.update.latest; save(); render(); },
@@ -775,6 +906,12 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('submit', e => {
   e.preventDefault();
+  if(e.target.id === 'listForm'){
+    const t = document.getElementById('listIn').value;
+    if(!t.trim()){ toast('Füge zuerst eine Liste ein'); return; }
+    document.getElementById('listIn').blur(); queueAdd(t); render();
+    return;
+  }
   if(e.target.id === 'lookupForm'){ const v = document.getElementById('wordIn').value; document.getElementById('wordIn').blur(); doLookup(v); }
   if(e.target.id === 'saveForm'){
     const d = ui.lookup && ui.lookup.data; if(!d) return;
@@ -795,6 +932,10 @@ document.addEventListener('submit', e => {
 });
 document.addEventListener('input', e => {
   if(e.target.id === 'q'){ ui.q = e.target.value; document.getElementById('rows').innerHTML = wordRows(); }
+  if(e.target.dataset && e.target.dataset.qde){
+    const q = (db.queue||[]).find(x => x.id === e.target.dataset.qde);
+    if(q){ q.deText = e.target.value; q.deTouched = true; save(); const h = document.getElementById('qhead'); if(h && !h.contains(document.activeElement)) h.innerHTML = queueHead(); }
+  }
 });
 document.addEventListener('change', e => {
   if(e.target.id === 'tStart' || e.target.id === 'tEnd'){
@@ -824,6 +965,7 @@ render();
 setInterval(checkDue, 30000);
 document.addEventListener('visibilitychange', () => { if(!document.hidden){ checkDue(); if(!ui.quiz) render(); } });
 setTimeout(checkDue, 1500);
+processQueue();
 loadVersion().then(() => { if(!ui.quiz) render(); autoCheckUpdate(); });
 if(NATIVE){
   // Beim ersten Start einmal um Erlaubnis für Benachrichtigungen fragen
