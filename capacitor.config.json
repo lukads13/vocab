@@ -1,0 +1,19 @@
+{
+  "appId": "at.lukads13.vocab",
+  "appName": "Vokabeln",
+  "webDir": "www",
+  "android": {
+    "backgroundColor": "#F4F3EF"
+  },
+  "plugins": {
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_vocab",
+      "iconColor": "#3442C4"
+    },
+    "SystemBars": {
+      "insetsHandling": "css",
+      "initialViewportFitValueHint": "cover",
+      "style": "LIGHT"
+    }
+  }
+}

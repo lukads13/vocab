@@ -1,0 +1,792 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F4F3EF">
+<title>Vokabeltrainer</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{
+  --bg:#F4F3EF; --surface:#FFFFFF; --ink:#18181C; --muted:#5C5D66; --line:#E3E1DA; --line2:#ECEAE4;
+  --accent:#3442C4; --accent-soft:#E7E9FB; --accent-ink:#2A35A0;
+  --amber:#F2B441; --new-bg:#FCEFD2; --new-fg:#6B4500; --ok-bg:#DCF0E3; --ok-fg:#1D5E38;
+  --dark:#18181C; --dark2:#26262C; --dark3:#3A3A42; --dark-muted:#B4B4BC;
+  --good:#5FD08F; --bad:#FF8A7A;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Roboto","Segoe UI",sans-serif;-webkit-tap-highlight-color:transparent}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer}
+#app{max-width:480px;margin:0 auto;min-height:100%;display:flex;flex-direction:column;position:relative}
+main{flex:1;padding:calc(env(safe-area-inset-top) + 20px) 20px 110px}
+h1{margin:0;font-size:28px;font-weight:700;letter-spacing:-.5px}
+h2{margin:0;font-size:18px;font-weight:650}
+p{margin:0}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+.stack{display:flex;flex-direction:column;gap:16px}
+.row{display:flex;align-items:center;gap:10px}
+.between{justify-content:space-between}
+.wrap{flex-wrap:wrap}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:24px;padding:18px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:14px}
+.stat b{display:block;font-size:26px;font-weight:700}
+.stat span{font-size:12px;color:var(--muted)}
+.hero{background:var(--accent);color:#fff;border-radius:28px;padding:20px;display:flex;flex-direction:column;gap:12px}
+.hero .big{font-size:20px;font-weight:600;line-height:1.3}
+.bolt{width:32px;height:32px;border-radius:16px;background:var(--amber);color:var(--ink);display:flex;align-items:center;justify-content:center;flex:none}
+.label{font-size:12px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;color:var(--muted)}
+.btn{height:48px;padding:0 18px;border-radius:24px;border:none;background:var(--accent);color:#fff;font-weight:600;font-size:15px}
+.btn.full{width:100%}
+.btn.white{background:#fff;color:var(--ink)}
+.btn.ghost{background:transparent;border:1.5px solid currentColor}
+.btn.line{background:#fff;color:var(--ink);border:1px solid var(--line)}
+.btn.amber{background:var(--amber);color:var(--ink);font-weight:700}
+.btn.danger{background:#fff;color:#A3271A;border:1px solid #E8C3BD}
+.btn:disabled{opacity:.5}
+.link{border:none;background:transparent;color:var(--accent);font-weight:600;font-size:14px;min-height:44px;padding:0 4px}
+.back{border:none;background:transparent;font-weight:600;font-size:15px;min-height:44px;display:flex;align-items:center;gap:4px;padding:0 8px 0 0}
+.chip{display:inline-flex;align-items:center;padding:4px 10px;border-radius:12px;font-size:12px;font-weight:600;background:var(--bg);color:#3A3B42}
+.chip.new{background:var(--new-bg);color:var(--new-fg)}
+.chip.learn{background:var(--accent-soft);color:var(--accent-ink)}
+.chip.sure{background:var(--ok-bg);color:var(--ok-fg)}
+.tchip{padding:8px 14px;border-radius:16px;background:var(--accent-soft);color:var(--accent-ink);font-weight:600;font-size:16px}
+.ochip{padding:6px 12px;border-radius:14px;border:1px solid var(--line);font-size:14px}
+.pill{height:40px;padding:0 16px;border-radius:20px;border:1px solid var(--line);background:var(--bg);font-weight:500;font-size:14px}
+.wordrow{display:flex;flex-direction:column;gap:10px;width:100%;text-align:left;padding:14px 16px;border-radius:20px;border:1px solid var(--line);background:var(--surface)}
+.wordrow .w{font-size:16px;font-weight:600}
+.bar{height:6px;border-radius:3px;background:var(--line2);overflow:hidden;width:100%}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:3px}
+.seg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.seg button{height:44px;border-radius:14px;border:1.5px solid var(--line);background:#fff;font-weight:600;font-size:14px}
+.seg button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+.filters{display:flex;gap:8px;overflow-x:auto}
+.filters button{height:38px;padding:0 14px;border-radius:19px;border:1px solid var(--line);background:#fff;font-weight:600;font-size:13px;white-space:nowrap}
+.filters button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-size:13px;font-weight:600;color:#3A3B42}
+.input{height:52px;padding:0 16px;border-radius:16px;border:1.5px solid #CFCDC5;background:#fff;font-size:17px;width:100%;min-width:0}
+textarea.input{height:auto;min-height:72px;padding:12px 16px;font-size:15px;line-height:1.45;resize:vertical}
+.input:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
+.search{display:flex;align-items:center;gap:10px;height:48px;padding:0 16px;border-radius:24px;background:#fff;border:1px solid var(--line);color:var(--muted)}
+.search input{flex:1;border:none;background:transparent;font-size:15px;outline:none;color:var(--ink);min-width:0}
+.ctx{background:var(--bg);border-radius:18px;padding:14px 16px;display:flex;flex-direction:column;gap:6px}
+.setrow{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line2)}
+.setrow:last-child{border-bottom:none}
+.switch{flex:none;width:52px;height:32px;border-radius:16px;border:none;background:#B9B7AF;padding:4px;display:flex}
+.switch span{width:24px;height:24px;border-radius:12px;background:#fff;transition:transform .15s}
+.switch[aria-pressed="true"]{background:var(--accent)}
+.switch[aria-pressed="true"] span{transform:translateX(20px)}
+.timein{height:44px;border-radius:12px;border:1.5px solid var(--line);padding:0 10px;font-size:15px;background:#fff}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.spinner{width:22px;height:22px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+nav.tabs{position:fixed;bottom:0;left:0;right:0;z-index:5;background:#fff;border-top:1px solid var(--line);padding:8px 12px calc(env(safe-area-inset-bottom) + 12px)}
+nav.tabs .in{max-width:480px;margin:0 auto;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}
+nav.tabs button{border:none;background:transparent;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--muted);padding:2px 0}
+nav.tabs button span{width:56px;height:30px;border-radius:15px;display:flex;align-items:center;justify-content:center}
+nav.tabs button[aria-current="page"]{color:var(--ink)}
+nav.tabs button[aria-current="page"] span{background:var(--accent-soft)}
+
+.overlay{position:fixed;inset:0;z-index:20;background:var(--dark);color:#fff;overflow-y:auto}
+.overlay .in{max-width:480px;margin:0 auto;min-height:100%;display:flex;flex-direction:column;gap:18px;padding:calc(env(safe-area-inset-top) + 24px) 20px calc(env(safe-area-inset-bottom) + 24px)}
+.dots{display:flex;gap:6px}
+.dots i{flex:1;height:6px;border-radius:3px;background:var(--dark3)}
+.dots i.done{background:var(--amber)} .dots i.cur{background:#fff}
+.qkind{padding:4px 10px;border-radius:12px;background:#2E2E36;font-size:12px;font-weight:600;color:var(--amber)}
+.qprompt{font-size:40px;font-weight:700;line-height:1.15;letter-spacing:-.5px;word-break:break-word}
+.qprompt.long{font-size:24px;line-height:1.35}
+.opt{display:flex;align-items:center;justify-content:space-between;min-height:58px;padding:12px 18px;border-radius:18px;border:1.5px solid var(--dark3);background:var(--dark2);color:#fff;font-size:17px;font-weight:500;text-align:left;width:100%}
+.opt.right{background:#1E4A31;border-color:var(--good)}
+.opt.wrong{background:#57211C;border-color:var(--bad)}
+.opt.dim{opacity:.5}
+.fb{background:var(--dark2);border-radius:22px;padding:16px 18px;display:flex;flex-direction:column;gap:12px}
+.ring{width:120px;height:120px;border-radius:60px;border:6px solid var(--amber);display:flex;align-items:center;justify-content:center;font-size:38px;font-weight:700;margin:0 auto}
+.resrow{display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-bottom:1px solid var(--dark3)}
+.resrow:last-child{border-bottom:none}
+
+#banner{position:fixed;inset:0;z-index:15;background:rgba(24,24,28,.35);display:none}
+#banner.show{display:block}
+#banner .box{max-width:456px;margin:calc(env(safe-area-inset-top) + 16px) auto 0;width:calc(100% - 24px);background:#fff;border-radius:28px;padding:18px;box-shadow:0 12px 40px rgba(0,0,0,.22);display:flex;flex-direction:column;gap:12px}
+#toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 100px);transform:translateX(-50%);background:var(--ink);color:#fff;padding:12px 18px;border-radius:14px;font-size:14px;z-index:30;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90%}
+#toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div id="app">
+  <main id="main" tabindex="-1"></main>
+</div>
+
+<nav class="tabs" aria-label="Hauptnavigation"><div class="in" id="tabs"></div></nav>
+
+<div id="banner" role="alertdialog" aria-label="Spontan-Test"></div>
+<div id="overlay"></div>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+'use strict';
+/* ============ Icons ============ */
+const I = {
+  home:'<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
+  list:'<path d="M4 5h16M4 12h16M4 19h10"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',
+  gear:'<path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/>',
+  back:'<path d="M15 5l-7 7 7 7"/>',
+  bolt:'<path d="M13 3 5 14h6l-1 7 8-11h-6z"/>',
+  search:'<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+  check:'<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  x:'<path d="M6 6l12 12M18 6 6 18"/>',
+  speaker:'<path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/>'
+};
+const ico = (n, s=22, extra='') => `<svg aria-hidden="true" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" ${extra}>${I[n]}</svg>`;
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* ============ Daten ============ */
+const KEY = 'vokabeltrainer.v1';
+const DEFAULTS = { freq:4, start:'08:00', end:'21:00', perTest:3, dir:'mix', notify:false, weak:true };
+function fresh(){ return { words:[], settings:{...DEFAULTS}, schedule:null, stats:{streak:0,lastDay:null,today:{date:null,count:0}} }; }
+function load(){
+  try{
+    const d = JSON.parse(localStorage.getItem(KEY));
+    if(d && Array.isArray(d.words)){ d.settings = {...DEFAULTS, ...(d.settings||{})}; d.stats = d.stats || fresh().stats; return d; }
+  }catch(e){}
+  return fresh();
+}
+let db = load();
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(db)); }catch(e){ toast('Speichern fehlgeschlagen'); } }
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+
+const POS = {noun:'Nomen',verb:'Verb',adjective:'Adjektiv',adverb:'Adverb',pronoun:'Pronomen',preposition:'Präposition',conjunction:'Konjunktion',interjection:'Interjektion',exclamation:'Ausruf',determiner:'Artikel'};
+const SAMPLES = [
+  {en:'reluctant',ipa:'/rɪˈlʌktənt/',pos:'Adjektiv',de:['widerwillig','zögernd'],def:'Unwilling and hesitant to do something.',ex:'He was reluctant to admit his mistake.',exDe:'Er gab seinen Fehler nur widerwillig zu.',syn:['unwilling','hesitant']},
+  {en:'casual',ipa:'/ˈkæʒuəl/',pos:'Adjektiv',de:['beiläufig','lässig','zwanglos'],def:'Relaxed and not very serious; happening without planning.',ex:'It was just a casual remark.',exDe:'Es war nur eine beiläufige Bemerkung.',syn:['relaxed','informal']},
+  {en:'wistful',ipa:'/ˈwɪstfəl/',pos:'Adjektiv',de:['wehmütig','sehnsüchtig'],def:'Showing a gentle, slightly sad longing for something.',ex:'She gave a wistful smile and looked out of the window.',exDe:'Sie lächelte wehmütig und sah aus dem Fenster.',syn:['nostalgic','longing']},
+  {en:'thorough',ipa:'/ˈθʌrə/',pos:'Adjektiv',de:['gründlich','sorgfältig'],def:'Done carefully and completely, paying attention to every detail.',ex:'The police carried out a thorough search.',exDe:'Die Polizei führte eine gründliche Durchsuchung durch.',syn:['careful','meticulous']},
+  {en:'to cope',ipa:'/kəʊp/',pos:'Verb',de:['zurechtkommen','bewältigen'],def:'To deal successfully with something difficult.',ex:'She coped well with the pressure at work.',exDe:'Sie kam gut mit dem Druck in der Arbeit zurecht.',syn:['manage','handle']},
+  {en:'sturdy',ipa:'/ˈstɜːdi/',pos:'Adjektiv',de:['stabil','robust'],def:'Strong and solidly built; not easily damaged.',ex:'We need a sturdy table for the workshop.',exDe:'Wir brauchen einen stabilen Tisch für die Werkstatt.',syn:['solid','robust']},
+  {en:'eager',ipa:'/ˈiːɡə/',pos:'Adjektiv',de:['eifrig','begierig'],def:'Wanting very much to do or have something.',ex:'The new team members were eager to learn.',exDe:'Die neuen Teammitglieder wollten unbedingt dazulernen.',syn:['keen','enthusiastic']}
+];
+function makeWord(o){ return { id:uid(), en:o.en.trim(), de:(o.de||[]).filter(Boolean), ipa:o.ipa||'', pos:o.pos||'', def:o.def||'', defs:o.defs||[], ex:o.ex||'', exDe:o.exDe||'', syn:o.syn||[], audio:o.audio||'', box:0, right:0, wrong:0, tested:0, lastTested:0, created:Date.now() }; }
+function findWord(en){ const k = norm(en); return db.words.find(w => norm(w.en) === k); }
+function norm(s){ return String(s||'').trim().toLowerCase().replace(/^to\s+/,''); }
+function status(w){ if(!w.tested) return ['Neu','new']; return w.box >= 4 ? ['Sicher','sure'] : ['Lernend','learn']; }
+
+/* ============ Zeit ============ */
+const pad = n => String(n).padStart(2,'0');
+const dayKey = (d=new Date()) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const toMin = t => { const [h,m] = String(t).split(':').map(Number); return (h||0)*60 + (m||0); };
+const hhmm = ms => { const d = new Date(ms); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+const DAYS = ['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'];
+const MONTHS = ['Jänner','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+
+/* Zufällige Testzeiten pro Tag. In der Android-App werden sie mehrere Tage im Voraus
+   als Benachrichtigungen eingeplant, deshalb liegen sie pro Datum in db.plan. */
+function dayStart(offset=0){ const n = new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate() + offset); }
+function genTimes(date){
+  const s = db.settings, base = date.getTime();
+  let a = toMin(s.start), b = toMin(s.end); if(b <= a) b = a + 60;
+  const slot = (b - a) / s.freq, times = [];
+  for(let i=0;i<s.freq;i++){ const m = a + i*slot + slot*0.1 + Math.random()*slot*0.8; times.push(base + Math.round(m)*60000); }
+  return times;
+}
+function planFor(offset){
+  const d = dayStart(offset), k = dayKey(d);
+  db.plan = db.plan || {};
+  if(!db.plan[k]){ const times = genTimes(d); db.plan[k] = { times, done: offset === 0 ? times.filter(t => t <= Date.now()) : [] }; }  // verpasste Zeiten von heute nicht nachholen
+  return db.plan[k];
+}
+function S(){ return planFor(0); }
+function buildSchedule(){  // nach Änderungen: heute und die kommenden Tage neu würfeln
+  db.plan = {}; planFor(0); save(); syncNotifications();
+}
+function ensureSchedule(){
+  const keep = new Set([0,1,2,3,4,5,6,7].map(o => dayKey(dayStart(o))));
+  const had = !!(db.plan && db.plan[dayKey()]);
+  S(); Object.keys(db.plan).forEach(k => { if(!keep.has(k)) delete db.plan[k]; });
+  if(!had) save();
+}
+function nextTest(){ ensureSchedule(); const n = Date.now(), sc = S(); return sc.times.filter(t => t > n && !sc.done.includes(t)).sort((x,y)=>x-y)[0] || null; }
+
+/* ============ Android (Capacitor) ============ */
+const NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+const PLUG = name => NATIVE ? ((window.Capacitor.Plugins && window.Capacitor.Plugins[name]) || (window.Capacitor.registerPlugin && window.Capacitor.registerPlugin(name))) : null;
+const LN = PLUG('LocalNotifications'), APP = PLUG('App');
+async function nativePermission(ask){
+  if(!LN) return 'denied';
+  try{ let p = await LN.checkPermissions(); if(p.display !== 'granted' && ask) p = await LN.requestPermissions(); return p.display; }catch(e){ return 'denied'; }
+}
+let syncing = Promise.resolve();
+function syncNotifications(){ syncing = syncing.then(doSync).catch(() => {}); return syncing; }
+async function doSync(){
+  if(!LN) return;
+  const pending = await LN.getPending().catch(() => ({notifications:[]}));
+  if(pending.notifications && pending.notifications.length) await LN.cancel({notifications: pending.notifications.map(n => ({id:n.id}))});
+  if(!db.settings.notify || !db.words.length) return;
+  if(await nativePermission(false) !== 'granted') return;
+  const now = Date.now(), list = [];
+  for(let o = 0; o < 7; o++){
+    const p = planFor(o);
+    p.times.filter(t => t > now && !p.done.includes(t)).forEach(t => list.push(t));
+  }
+  if(db.snoozeAt && db.snoozeAt > now) list.push(db.snoozeAt);
+  save();
+  const n = Math.min(db.settings.perTest, db.words.length);
+  await LN.schedule({ notifications: list.map(t => ({
+    id: Math.floor(t / 60000) % 2000000000,
+    title: 'Spontan-Test! Weißt du’s noch?',
+    body: `${n} Wörter warten auf dich – dauert ca. 1 Minute.`,
+    schedule: { at: new Date(t), allowWhileIdle: true },
+    extra: { quiz: true }
+  })) });
+}
+
+/* ============ UI-Zustand ============ */
+const ui = { screen:'home', detail:null, filter:'all', q:'', lookup:null, quiz:null, delArm:false, editDe:false };
+
+function go(screen, opts={}){
+  Object.assign(ui, {screen, delArm:false, editDe:false}, opts);
+  if(!opts.noHistory) history.pushState({screen, detail:ui.detail}, '');
+  render(); window.scrollTo(0,0);
+}
+window.addEventListener('popstate', e => {
+  if(ui.quiz){ closeQuiz(); return; }
+  if(document.getElementById('banner').classList.contains('show')){ hideBanner(); return; }
+  const st = e.state || {screen:'home'}; Object.assign(ui, {screen:st.screen, detail:st.detail||null, delArm:false, editDe:false}); render();
+});
+
+/* ============ Rendering ============ */
+function render(){
+  const v = VIEWS[ui.screen] || VIEWS.home;
+  document.getElementById('main').innerHTML = v();
+  renderTabs();
+}
+function renderTabs(){
+  const t = [['home','Start','home',['home']],['words','Vokabeln','list',['words','detail']],['add','Hinzufügen','plus',['add']],['settings','Einstellungen','gear',['settings']]];
+  document.getElementById('tabs').innerHTML = t.map(([s,l,i,act]) =>
+    `<button data-act="go" data-to="${s}" ${act.includes(ui.screen)?'aria-current="page"':''}><span>${ico(i)}</span>${l}</button>`).join('');
+}
+function wordRow(w, withBar){
+  const [st, cls] = status(w);
+  return `<button class="wordrow" data-act="open" data-id="${w.id}">
+    <span class="row between" style="width:100%">
+      <span style="display:flex;flex-direction:column;gap:2px;min-width:0">
+        <span class="w">${esc(w.en)}</span><span class="small muted">${esc(w.de.join(', '))}</span>
+      </span><span class="chip ${cls}">${st}</span>
+    </span>${withBar ? `<span class="bar"><i style="width:${w.box*20}%"></i></span>` : ''}</button>`;
+}
+function wordRows(){
+  const q = norm(ui.q);
+  const rows = [...db.words].sort((a,b) => b.created - a.created).filter(w => {
+    if(ui.filter !== 'all' && status(w)[1] !== ui.filter) return false;
+    if(!q) return true;
+    return norm(w.en).includes(q) || w.de.some(x => x.toLowerCase().includes(q));
+  });
+  return rows.map(w => wordRow(w,true)).join('') || `<p class="muted" style="text-align:center;padding:16px 0">${db.words.length ? 'Nichts gefunden.' : 'Noch keine Vokabeln.'}</p>`;
+}
+function greeting(){ const h = new Date().getHours(); return h < 11 ? 'Guten Morgen' : h < 18 ? 'Hallo' : 'Guten Abend'; }
+
+const VIEWS = {
+home(){
+  const d = new Date(), n = nextTest(), s = db.settings;
+  const today = db.stats.today.date === dayKey() ? db.stats.today.count : 0;
+  const dirL = {mix:'EN ↔ DE gemischt', en:'EN → DE', de:'DE → EN'}[s.dir];
+  let when;
+  if(!db.words.length) when = 'Füge ein paar Wörter hinzu – dann tauchen über den Tag verteilt Tests auf.';
+  else if(n){ const h = new Date(n).getHours(); when = `Der nächste Test kommt überraschend – irgendwann zwischen ${h} und ${h+1} Uhr.`; }
+  else when = 'Für heute sind alle Spontan-Tests durch. Morgen geht’s weiter.';
+  const due = [...db.words].sort((a,b) => a.box - b.box || a.lastTested - b.lastTested).slice(0,5);
+  const recent = [...db.words].sort((a,b) => b.created - a.created).slice(0,3);
+  return `<div class="stack">
+  <div class="row between">
+    <div><p class="small muted">${DAYS[d.getDay()]}, ${d.getDate()}. ${MONTHS[d.getMonth()]}</p><h1 style="margin-top:2px">${greeting()}</h1></div>
+  </div>
+  <div class="grid3">
+    <div class="stat"><b>${db.words.length}</b><span>Vokabeln</span></div>
+    <div class="stat"><b>${db.stats.streak||0}</b><span>Tage Serie</span></div>
+    <div class="stat"><b>${today}</b><span>Tests heute</span></div>
+  </div>
+  <div class="hero">
+    <div class="row"><div class="bolt">${ico('bolt',18,'stroke-width="2"')}</div><p class="small" style="font-weight:600;letter-spacing:.4px;text-transform:uppercase">Spontan-Tests</p></div>
+    <p class="big">${when}</p>
+    <p class="small" style="opacity:.9">${s.freq}× täglich · ${s.perTest} Wörter · ${dirL} · ${esc(s.start)}–${esc(s.end)}</p>
+    <div class="row" style="margin-top:4px">
+      <button class="btn white" style="flex:1" data-act="quiz" ${db.words.length?'':'disabled'}>Jetzt testen</button>
+      <button class="btn ghost" data-act="go" data-to="settings">Anpassen</button>
+    </div>
+  </div>
+  ${db.words.length ? `
+  <div class="card stack" style="gap:12px">
+    <div class="row between"><h2>Zum Wiederholen</h2><p class="small muted">schwächste zuerst</p></div>
+    <div class="row wrap" style="gap:8px">${due.map(w => `<button class="pill" data-act="open" data-id="${w.id}">${esc(w.en)}</button>`).join('')}</div>
+  </div>
+  <div class="stack" style="gap:10px">
+    <div class="row between"><h2>Zuletzt hinzugefügt</h2><button class="link" data-act="go" data-to="words">Alle ansehen</button></div>
+    ${recent.map(w => wordRow(w,false)).join('')}
+  </div>` : `
+  <div class="card stack" style="gap:12px">
+    <h2>Noch keine Vokabeln</h2>
+    <p class="muted" style="line-height:1.5">Füge dein erstes englisches Wort hinzu oder lade ein paar Beispielwörter zum Ausprobieren.</p>
+    <button class="btn full" data-act="go" data-to="add">Wort hinzufügen</button>
+    <button class="btn line full" data-act="samples">Beispielwörter laden</button>
+  </div>`}
+  </div>`;
+},
+
+words(){
+  const f = [['all','Alle'],['new','Neu'],['learn','Lernend'],['sure','Sicher']];
+  return `<div class="stack" style="gap:14px">
+  <div class="row between" style="align-items:baseline"><h1>Meine Vokabeln</h1><p class="muted small">${db.words.length} Wörter</p></div>
+  <div class="search">${ico('search',20)}<label class="sr" for="q">Suchen</label><input id="q" type="search" placeholder="Englisch oder Deutsch suchen" value="${esc(ui.q)}" autocomplete="off"></div>
+  <div class="filters">${f.map(([k,l]) => `<button data-act="filter" data-f="${k}" aria-pressed="${ui.filter===k}">${l}</button>`).join('')}</div>
+  <div class="stack" style="gap:8px" id="rows">${wordRows()}</div>
+  </div>`;
+},
+
+add(){
+  const L = ui.lookup;
+  let body = '';
+  if(L && L.status === 'loading') body = `<div class="card row" style="gap:12px"><div class="spinner"></div><p>Schlage „${esc(L.word)}“ nach …</p></div>`;
+  if(L && L.status === 'done') body = entryEditor(L.data, L.note);
+  return `<div class="stack" style="gap:14px">
+  <div><h1>Wort hinzufügen</h1><p class="muted" style="margin-top:6px;line-height:1.45;font-size:14px">Englisches Wort eingeben – Übersetzung und Wörterbuch-Kontext kommen automatisch. Du kannst alles vor dem Speichern anpassen.</p></div>
+  <form id="lookupForm" class="field">
+    <label for="wordIn">Englisches Wort</label>
+    <div class="row" style="gap:8px"><input class="input" id="wordIn" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="z. B. eager" value="${esc(L ? L.word : '')}" enterkeyhint="search">
+    <button class="btn" type="submit" style="height:52px;border-radius:16px">Nachschlagen</button></div>
+  </form>
+  ${body}
+  </div>`;
+},
+
+detail(){
+  const w = db.words.find(x => x.id === ui.detail);
+  if(!w) return VIEWS.words();
+  const [st] = status(w);
+  return `<div class="stack" style="gap:14px">
+  <button class="back" data-act="back">${ico('back')} Vokabeln</button>
+  <div class="card stack" style="gap:18px;border-radius:28px;padding:22px">
+    ${entryHead(w)}
+    <div class="stack" style="gap:8px"><p class="label">Deutsch</p>
+      ${ui.editDe ? `<form id="deForm" class="stack" style="gap:8px"><label class="sr" for="deEdit">Deutsche Bedeutungen</label><input class="input" id="deEdit" value="${esc(w.de.join(', '))}"><p class="small muted">Mehrere Bedeutungen mit Komma trennen.</p><button class="btn" type="submit">Speichern</button></form>`
+        : `<div class="row wrap" style="gap:8px">${w.de.map(t => `<span class="tchip">${esc(t)}</span>`).join('')}</div><button class="link" style="align-self:flex-start" data-act="editDe">Übersetzung bearbeiten</button>`}
+    </div>
+    ${entryBody(w)}
+    <div class="stack" style="gap:8px;border-top:1px solid var(--line);padding-top:14px">
+      <div class="row between"><p style="font-weight:600;font-size:14px">Lernstand: ${st}</p><p class="small muted">${w.box} von 5</p></div>
+      <div class="bar" style="height:8px"><i style="width:${w.box*20}%"></i></div>
+      <p class="small muted">${w.tested ? `${w.right}× richtig, ${w.wrong}× falsch · zuletzt ${new Date(w.lastTested).toLocaleDateString('de-AT')} ${hhmm(w.lastTested)}` : 'Noch nicht abgefragt'}</p>
+    </div>
+  </div>
+  <button class="btn danger full" data-act="del">${ui.delArm ? 'Wirklich löschen? Nochmal tippen' : 'Wort löschen'}</button>
+  </div>`;
+},
+
+settings(){
+  const s = db.settings;
+  const seg = (key, opts) => `<div class="seg">${opts.map(([v,l]) => `<button data-act="set" data-k="${key}" data-v="${v}" aria-pressed="${String(s[key])===String(v)}">${l}</button>`).join('')}</div>`;
+  const notifState = NATIVE ? '' : !('Notification' in window) ? 'Nicht unterstützt' : Notification.permission === 'denied' ? 'Im System blockiert' : '';
+  const notifHint = NATIVE ? (ui.perm === 'denied' ? 'In den Android-Einstellungen für diese App erlauben' : 'Erinnert dich zu den Testzeiten – auch wenn die App zu ist') : 'Hinweis, wenn die App im Hintergrund offen ist';
+  const open = S().times.filter(t => t > Date.now() && !S().done.includes(t)).length;
+  return `<div class="stack">
+  <div><h1>Spontan-Tests</h1><p class="muted" style="margin-top:6px;line-height:1.45;font-size:14px">Die App wählt zufällige Zeitpunkte im Zeitfenster und fragt ein paar Wörter ab.</p></div>
+  <div class="card stack" style="gap:18px">
+    <div class="stack" style="gap:10px"><p style="font-weight:600;font-size:14px">Wie oft am Tag?</p>${seg('freq',[[2,'2×'],[4,'4×'],[6,'6×']])}</div>
+    <div class="stack" style="gap:10px"><p style="font-weight:600;font-size:14px">Wörter pro Test</p>${seg('perTest',[[3,'3'],[5,'5'],[8,'8']])}</div>
+    <div class="stack" style="gap:10px"><p style="font-weight:600;font-size:14px">Abfragerichtung</p>${seg('dir',[['en','EN → DE'],['de','DE → EN'],['mix','Gemischt']])}</div>
+  </div>
+  <div class="card" style="padding:6px 18px">
+    <div class="setrow"><div><p style="font-weight:600">Zeitfenster</p><p class="small muted">Tests nur in dieser Zeit</p></div>
+      <div class="row" style="gap:6px"><label class="sr" for="tStart">Von</label><input class="timein" type="time" id="tStart" value="${esc(s.start)}"><span>–</span><label class="sr" for="tEnd">Bis</label><input class="timein" type="time" id="tEnd" value="${esc(s.end)}"></div></div>
+    <div class="setrow"><div><p style="font-weight:600">Benachrichtigungen</p><p class="small muted">${notifState || notifHint}</p></div>
+      <button class="switch" aria-label="Benachrichtigungen" aria-pressed="${!!s.notify && !notifState}" data-act="notify" ${notifState?'disabled':''}><span></span></button></div>
+    <div class="setrow"><div><p style="font-weight:600">Heutige Zeiten neu würfeln</p><p class="small muted">${open === 1 ? 'Heute noch 1 Test offen' : `Heute noch ${open} Tests offen`}</p></div>
+      <button class="btn line" style="height:44px" data-act="reroll">Würfeln</button></div>
+  </div>
+  <div class="card stack" style="gap:12px">
+    <h2>Daten</h2>
+    <p class="small muted" style="line-height:1.5">Alles bleibt nur auf diesem Gerät. Mach ab und zu ein Backup – damit kannst du die Liste auch auf ein anderes Handy übertragen.${NATIVE ? ' „Kopieren“ legt das Backup in die Zwischenablage, z. B. zum Einfügen in eine Notiz oder Mail.' : ''}</p>
+    <div class="row wrap" style="gap:8px">
+      <button class="btn line" data-act="export">${NATIVE ? 'Backup kopieren' : 'Backup exportieren'}</button>
+      <button class="btn line" data-act="import">${NATIVE ? 'Backup einfügen' : 'Backup importieren'}</button>
+      <input type="file" id="importFile" accept="application/json,.json" hidden>
+    </div>
+    ${db.words.length ? '' : `<button class="btn line" data-act="samples">Beispielwörter laden</button>`}
+  </div>
+  <p class="small muted" style="text-align:center;line-height:1.5">Wörterbuch: dictionaryapi.dev · Übersetzung: MyMemory<br>Zum Nachschlagen ist Internet nötig, Lernen und Tests gehen offline.</p>
+  </div>`;
+}
+};
+
+function entryHead(d){
+  return `<div class="stack" style="gap:8px">
+    <div class="row wrap" style="align-items:baseline;gap:10px"><h2 style="font-size:32px;font-weight:700;letter-spacing:-.6px">${esc(d.en)}</h2>${d.ipa?`<span class="muted">${esc(d.ipa)}</span>`:''}
+      <button class="link" style="min-height:40px;display:flex;align-items:center;gap:4px" data-act="speak" data-w="${esc(d.en)}" data-audio="${esc(d.audio||'')}" aria-label="Aussprache anhören">${ico('speaker',20)}</button></div>
+    <div class="row" style="gap:6px">${d.pos?`<span class="chip">${esc(d.pos)}</span>`:''}</div>
+  </div>`;
+}
+function entryBody(d){
+  const defs = (d.defs && d.defs.length) ? d.defs : (d.def ? [{pos:'', def:d.def}] : []);
+  return `${defs.length ? `<div class="stack" style="gap:6px"><p class="label">Bedeutung · Dictionary</p>${defs.map((x,i) => `<p style="font-size:15px;line-height:1.5">${defs.length>1?`<span class="muted small">${i+1}. ${esc(x.pos||'')}</span> `:''}${esc(x.def)}</p>`).join('')}</div>` : ''}
+  ${d.ex ? `<div class="ctx"><p class="label">Im Kontext</p><p style="font-size:15px;line-height:1.5;font-weight:500">${esc(d.ex)}</p>${d.exDe?`<p class="muted" style="font-size:14px;line-height:1.5;font-style:italic">${esc(d.exDe)}</p>`:''}</div>` : ''}
+  ${d.syn && d.syn.length ? `<div class="stack" style="gap:8px"><p class="label">Synonyme</p><div class="row wrap" style="gap:6px">${d.syn.map(s => `<span class="ochip">${esc(s)}</span>`).join('')}</div></div>` : ''}`;
+}
+function entryEditor(d, note){
+  const exists = findWord(d.en);
+  return `<div class="card stack" style="gap:18px;border-radius:28px;padding:22px">
+    ${note ? `<p class="small" style="background:var(--new-bg);color:var(--new-fg);padding:10px 12px;border-radius:12px;line-height:1.45">${esc(note)}</p>` : ''}
+    ${entryHead(d)}
+    <form id="saveForm" class="stack" style="gap:18px">
+      <div class="field"><label for="deIn" class="label" style="color:var(--muted)">Deutsch</label>
+        <input class="input" id="deIn" value="${esc(d.de.join(', '))}" placeholder="deutsche Bedeutung(en), mit Komma getrennt">
+      </div>
+      ${entryBody(d)}
+      ${d.ex ? `<div class="field"><label for="exDeIn">Beispiel auf Deutsch (optional anpassen)</label><textarea class="input" id="exDeIn">${esc(d.exDe||'')}</textarea></div>` : ''}
+      ${exists ? `<div class="row" style="gap:8px;justify-content:center;min-height:52px;border-radius:26px;background:var(--ok-bg);color:var(--ok-fg);font-weight:600">${ico('check',20)} Schon in deiner Liste</div>
+        <button type="button" class="btn line full" data-act="open" data-id="${exists.id}">Eintrag öffnen</button>`
+        : `<button class="btn full" type="submit" style="height:52px;border-radius:26px">Zur Vokabelliste hinzufügen</button>`}
+    </form>
+  </div>`;
+}
+
+/* ============ Nachschlagen ============ */
+async function fetchJSON(url, ms=9000){
+  const c = new AbortController(); const t = setTimeout(() => c.abort(), ms);
+  try{ const r = await fetch(url, {signal:c.signal}); if(!r.ok) throw new Error('HTTP '+r.status); return await r.json(); }
+  finally{ clearTimeout(t); }
+}
+async function translate(text){
+  const j = await fetchJSON(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|de`);
+  if(!j || (j.responseStatus && Number(j.responseStatus) !== 200)) throw new Error('mm');
+  const out = [], seen = new Set(), add = s => {
+    s = String(s||'').trim().replace(/[.!]+$/,''); const k = s.toLowerCase();
+    if(!s || /MYMEMORY|QUERY LENGTH/i.test(s) || seen.has(k) || k === text.toLowerCase()) return; seen.add(k); out.push(s);
+  };
+  add(j.responseData && j.responseData.translatedText);
+  (j.matches||[]).filter(m => Number(m.quality||0) >= 50 || m.quality === undefined).forEach(m => add(m.translation));
+  return out;
+}
+async function doLookup(raw){
+  const word = raw.trim().replace(/\s+/g,' ');
+  if(!word) return;
+  ui.lookup = {status:'loading', word}; render();
+  const base = word.toLowerCase().replace(/^to\s+/,'');
+  const [dict, tr] = await Promise.allSettled([
+    fetchJSON(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(base)}`),
+    translate(word)
+  ]);
+  const d = { en:word, de:[], ipa:'', pos:'', def:'', defs:[], ex:'', exDe:'', syn:[], audio:'' };
+  let note = '';
+  if(dict.status === 'fulfilled' && Array.isArray(dict.value)){
+    const E = dict.value;
+    for(const e of E){ if(!d.ipa) d.ipa = e.phonetic || ((e.phonetics||[]).find(p => p.text)||{}).text || ''; if(!d.audio) d.audio = ((e.phonetics||[]).find(p => p.audio)||{}).audio || ''; }
+    const syn = new Set();
+    for(const e of E) for(const m of (e.meanings||[])){
+      const pos = POS[m.partOfSpeech] || m.partOfSpeech || '';
+      if(!d.pos) d.pos = pos;
+      (m.synonyms||[]).forEach(s => syn.add(s));
+      for(const df of (m.definitions||[])){
+        if(d.defs.length < 3 && !d.defs.some(x => x.pos === pos)) d.defs.push({pos, def:df.definition});
+        if(!d.ex && df.example) d.ex = df.example;
+        (df.synonyms||[]).forEach(s => syn.add(s));
+      }
+    }
+    if(!d.defs.length){ const m = (E[0].meanings||[])[0]; if(m && m.definitions[0]) d.defs.push({pos:d.pos, def:m.definitions[0].definition}); }
+    d.def = d.defs[0] ? d.defs[0].def : '';
+    d.syn = [...syn].slice(0,6);
+    if(d.pos === 'Verb' && !/^to\s/i.test(d.en) && d.defs.length === 1) d.en = d.en; // Schreibweise lassen, wie eingegeben
+  }
+  if(tr.status === 'fulfilled') d.de = tr.value.slice(0,4);
+  if(d.ex){ try{ d.exDe = (await translate(d.ex))[0] || ''; }catch(e){} }
+  const offline = dict.status === 'rejected' && tr.status === 'rejected' && !navigator.onLine;
+  if(offline) note = 'Keine Internetverbindung – trag die Übersetzung selbst ein, das Wort wird trotzdem gespeichert.';
+  else if(dict.status === 'rejected' && !d.de.length) note = 'Nichts gefunden. Stimmt die Schreibweise? Du kannst die Übersetzung auch selbst eintragen.';
+  else if(dict.status === 'rejected') note = 'Kein Wörterbuch-Eintrag gefunden (z. B. bei Redewendungen) – die Übersetzung ist trotzdem da.';
+  if(!ui.lookup || ui.lookup.word !== word) return;
+  ui.lookup = {status:'done', word, data:d, note};
+  if(ui.screen === 'add') render();
+}
+function speak(w, audio){
+  if(audio){ const a = new Audio(audio); a.play().catch(() => tts(w)); return; }
+  tts(w);
+}
+function tts(w){
+  if(!('speechSynthesis' in window)){ toast('Sprachausgabe nicht verfügbar'); return; }
+  const u = new SpeechSynthesisUtterance(String(w).replace(/^to\s+/i,'')); u.lang = 'en-GB'; u.rate = .9;
+  speechSynthesis.cancel(); speechSynthesis.speak(u);
+}
+
+/* ============ Spontan-Test ============ */
+const shuffle = a => { for(let i=a.length-1;i>0;i--){ const j = Math.floor(Math.random()*(i+1)); [a[i],a[j]] = [a[j],a[i]]; } return a; };
+function pickWords(n){
+  const now = Date.now();
+  return db.words.map(w => ({w, s:(6-w.box)*2 + Math.min((now-(w.lastTested||0))/36e5, 48)/12 + Math.random()*2.5}))
+    .sort((a,b) => b.s - a.s).slice(0,n).map(x => x.w);
+}
+function makeQuestion(w){
+  const others = db.words.filter(o => o.id !== w.id && o.de.length);
+  const base = norm(w.en).split(' ')[0];
+  const re = base.length > 2 ? new RegExp(`\\b(${base.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}\\w*)\\b`, 'i') : null;
+  const canCloze = w.ex && re && re.test(w.ex);
+  let kinds = db.settings.dir === 'en' ? ['en'] : db.settings.dir === 'de' ? ['de'] : ['en','de'].concat(canCloze ? ['cloze'] : []);
+  const explain = `${w.en} = ${w.de.join(', ')}${w.ex ? ` · „${w.ex}“` : ''}`;
+  if(others.length < 3 || !w.de.length) return {w, kind:'flip', label: 'Karteikarte', prompt:w.en, sub:'Weißt du, was es bedeutet?', answer:w.de.join(', ') || w.def, explain};
+  const kind = kinds[Math.floor(Math.random()*kinds.length)];
+  const pickOthers = (f) => { const seen = new Set([f(w).toLowerCase()]); const out = []; for(const o of shuffle([...others])){ const v = f(o); if(v && !seen.has(v.toLowerCase())){ seen.add(v.toLowerCase()); out.push(v); } if(out.length === 3) break; } return out; };
+  if(kind === 'en'){ const c = w.de[0]; return {w, kind, label:'EN → DE', prompt:w.en, sub:'Was bedeutet das Wort?', options:shuffle([c, ...pickOthers(o => o.de[0])]), correct:c, explain}; }
+  if(kind === 'de'){ const c = w.en; return {w, kind, label:'DE → EN', prompt:w.de[0], sub:'Wie sagt man das auf Englisch?', options:shuffle([c, ...pickOthers(o => o.en)]), correct:c, explain}; }
+  const c = w.en; const blank = w.ex.replace(re, '_____');
+  return {w, kind, label:'Lückentext', prompt:blank, long:true, sub:`Welches Wort passt? (Tipp: ${w.de[0]})`, options:shuffle([c, ...pickOthers(o => o.en)]), correct:c, explain};
+}
+function startQuiz(){
+  hideBanner();
+  if(!db.words.length){ toast('Füge zuerst ein paar Wörter hinzu'); return; }
+  const qs = pickWords(Math.min(db.settings.perTest, db.words.length)).map(makeQuestion);
+  ui.quiz = { qs, i:0, picked:null, revealed:false, results:[], done:false };
+  document.getElementById('toast').classList.remove('show');
+  history.pushState({quiz:true}, '');
+  renderQuiz();
+}
+function closeQuiz(){ ui.quiz = null; document.getElementById('overlay').innerHTML = ''; document.body.style.overflow = ''; render(); }
+function answer(ok){
+  const Q = ui.quiz, q = Q.qs[Q.i], w = db.words.find(x => x.id === q.w.id);
+  if(w){ w.tested++; w.lastTested = Date.now(); if(ok){ w.right++; w.box = Math.min(5, w.box+1); } else { w.wrong++; w.box = Math.max(0, w.box-2); } }
+  Q.results[Q.i] = ok; save();
+}
+function nextQ(){
+  const Q = ui.quiz;
+  if(Q.i < Q.qs.length - 1){ Q.i++; Q.picked = null; Q.revealed = false; }
+  else { Q.done = true; finishStats(); }
+  renderQuiz();
+}
+function finishStats(){
+  const t = dayKey(), s = db.stats;
+  if(s.today.date !== t) s.today = {date:t, count:0};
+  s.today.count++;
+  if(s.lastDay !== t){ const y = new Date(); y.setDate(y.getDate()-1); s.streak = s.lastDay === dayKey(y) ? (s.streak||0)+1 : 1; s.lastDay = t; }
+  save();
+}
+function renderQuiz(){
+  const Q = ui.quiz, el = document.getElementById('overlay');
+  if(!Q){ el.innerHTML = ''; return; }
+  document.body.style.overflow = 'hidden';
+  if(Q.done){
+    const score = Q.results.filter(Boolean).length, n = Q.qs.length, nx = nextTest();
+    el.innerHTML = `<div class="overlay"><div class="in" style="padding-top:calc(env(safe-area-inset-top) + 48px)">
+      <div class="ring">${score}/${n}</div>
+      <div style="text-align:center"><h1 style="font-size:30px">${score === n ? 'Perfekt!' : score >= n/2 ? 'Stark!' : 'Dranbleiben!'}</h1>
+      <p style="color:var(--dark-muted);margin-top:6px">Serie: ${db.stats.streak} ${db.stats.streak === 1 ? 'Tag' : 'Tage'}${nx ? ` · nächster Test ca. ${new Date(nx).getHours()} Uhr` : ''}</p></div>
+      <div style="background:var(--dark2);border-radius:22px;padding:4px 16px">${Q.qs.map((q,i) => `<div class="resrow"><div><p style="font-weight:600">${esc(q.w.en)}</p><p class="small" style="color:var(--dark-muted)">${esc(q.w.de.join(', '))}</p></div><span class="small" style="font-weight:700;color:${Q.results[i]?'var(--good)':'var(--bad)'}">${Q.results[i]?'Richtig':'Wiederholen'}</span></div>`).join('')}</div>
+      <p class="small" style="color:var(--dark-muted);text-align:center;line-height:1.5">Falsche Wörter kommen in den nächsten Tests öfter dran.</p>
+      <div style="flex:1"></div>
+      <button class="btn amber full" style="height:54px;border-radius:27px" data-act="quizClose">Fertig</button>
+    </div></div>`;
+    return;
+  }
+  const q = Q.qs[Q.i], answered = q.kind === 'flip' ? Q.results[Q.i] !== undefined : Q.picked !== null;
+  const dots = Q.qs.map((_,i) => `<i class="${i<Q.i?'done':i===Q.i?'cur':''}"></i>`).join('');
+  let body = '';
+  if(q.kind === 'flip'){
+    body = Q.revealed ? `<div class="fb"><p class="label" style="color:var(--dark-muted)">Bedeutung</p><p style="font-size:22px;font-weight:700">${esc(q.answer)}</p>${q.w.ex?`<p class="small" style="color:#DADAE0;line-height:1.5">„${esc(q.w.ex)}“</p>`:''}</div>
+      ${answered ? `<button class="btn amber full" style="height:52px;border-radius:26px" data-act="next">${Q.i < Q.qs.length-1 ? 'Weiter' : 'Ergebnis ansehen'}</button>`
+      : `<div class="row" style="gap:10px"><button class="btn full" style="background:#1E4A31;border:1.5px solid var(--good);height:52px" data-act="flip" data-ok="1">Gewusst</button><button class="btn full" style="background:#57211C;border:1.5px solid var(--bad);height:52px" data-act="flip" data-ok="0">Nicht gewusst</button></div>`}`
+      : `<button class="btn amber full" style="height:52px;border-radius:26px" data-act="reveal">Aufdecken</button>`;
+    body = `<div style="flex:1"></div>${body}`;
+  } else {
+    body = `<div class="stack" style="gap:10px">${q.options.map((o,i) => {
+      let cls = '', mark = '';
+      if(answered){ if(o === q.correct){ cls='right'; mark = `<svg role="img" aria-label="richtig" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--good)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">${I.check}</svg>`; }
+        else if(i === Q.picked){ cls='wrong'; mark = `<svg role="img" aria-label="falsch" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--bad)" stroke-width="2.4" stroke-linecap="round">${I.x}</svg>`; } else cls='dim'; }
+      return `<button class="opt ${cls}" data-act="pick" data-i="${i}" ${answered?'aria-disabled="true"':''}><span>${esc(o)}</span>${mark}</button>`; }).join('')}</div>
+      <div style="flex:1"></div>
+      ${answered ? `<div class="fb"><p style="font-size:18px;font-weight:700;color:${Q.results[Q.i]?'var(--good)':'var(--bad)'}">${Q.results[Q.i]?'Richtig!':'Nicht ganz.'}</p>
+        <p class="small" style="color:#DADAE0;line-height:1.5">${esc(q.explain)}</p>
+        <button class="btn amber full" style="height:52px;border-radius:26px" data-act="next">${Q.i < Q.qs.length-1 ? 'Weiter' : 'Ergebnis ansehen'}</button></div>` : ''}`;
+  }
+  el.innerHTML = `<div class="overlay"><div class="in">
+    <div class="row between"><div class="row"><div class="bolt">${ico('bolt',18,'stroke-width="2"')}</div><p style="font-weight:600;font-size:14px">Spontan-Test</p></div>
+      <button class="btn" style="height:44px;background:transparent;border:1px solid #44444C;font-size:14px" data-act="quizClose">Später</button></div>
+    <div class="dots">${dots}</div>
+    <div class="stack" style="gap:10px;padding-top:12px">
+      <div class="row"><span class="qkind">${q.label}</span><span class="small" style="color:var(--dark-muted)">Frage ${Q.i+1} von ${Q.qs.length}</span></div>
+      <h2 class="qprompt ${q.long?'long':''}">${esc(q.prompt)}</h2>
+      <p style="color:var(--dark-muted);font-size:15px">${esc(q.sub)}</p>
+    </div>
+    ${body}
+  </div></div>`;
+}
+
+/* ============ Banner / Benachrichtigung ============ */
+function showBanner(){
+  const b = document.getElementById('banner');
+  const names = pickWords(2).map(w => w.en).join(', ');
+  b.innerHTML = `<div class="box">
+    <div class="row" style="gap:12px"><div class="bolt" style="width:44px;height:44px;border-radius:22px">${ico('bolt',22,'stroke-width="2"')}</div>
+      <div><p class="small muted">Vokabeln · jetzt</p><p style="font-size:18px;font-weight:700;margin-top:2px">Spontan-Test! Weißt du’s noch?</p></div></div>
+    <p class="small" style="color:#3A3B42;line-height:1.45">${Math.min(db.settings.perTest, db.words.length)} Wörter · dauert ca. 1 Minute. Zum Beispiel: ${esc(names)} …</p>
+    <div class="row" style="gap:10px"><button class="btn" style="flex:1" data-act="quiz">Los geht’s</button><button class="btn line" data-act="snooze">In 15 Min</button></div>
+  </div>`;
+  b.classList.add('show');
+}
+function hideBanner(){ document.getElementById('banner').classList.remove('show'); }
+async function notify(){
+  if(NATIVE) return; // in der Android-App sind die Benachrichtigungen schon fix eingeplant
+  if(!db.settings.notify || !('Notification' in window) || Notification.permission !== 'granted') return;
+  const opts = { body:'Ein paar Wörter warten auf dich – dauert ca. 1 Minute.', tag:'spontan-test', icon:'icon-192.png', badge:'icon-192.png', renotify:true };
+  try{
+    const reg = navigator.serviceWorker && await navigator.serviceWorker.getRegistration();
+    if(reg) reg.showNotification('Spontan-Test!', opts); else new Notification('Spontan-Test!', opts);
+  }catch(e){}
+}
+function checkDue(){
+  ensureSchedule();
+  if(!db.words.length || ui.quiz) return;
+  const now = Date.now(), sc = S();
+  const due = sc.times.filter(t => t <= now && !sc.done.includes(t));
+  if(!due.length) return;
+  sc.done.push(...due); save();
+  if(!document.getElementById('banner').classList.contains('show')){ showBanner(); if(document.hidden) notify(); }
+}
+
+/* ============ Toast ============ */
+let toastT;
+function toast(msg){ const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2400); }
+
+/* ============ Aktionen ============ */
+const ACT = {
+  go: d => go(d.to),
+  back: () => history.length > 1 ? history.back() : go('words'),
+  open: d => go('detail', {detail:d.id}),
+  filter: d => { ui.filter = d.f; render(); },
+  quiz: () => startQuiz(),
+  snooze: () => { hideBanner(); S().times.push(Date.now() + 15*60000); save(); syncNotifications(); toast('Okay – in 15 Minuten nochmal'); },
+  samples: () => { let n = 0; SAMPLES.forEach(s => { if(!findWord(s.en)){ db.words.push({...makeWord(s), created:Date.now() - (n++)*1000}); } }); save(); toast(`${n} Beispielwörter geladen`); render(); syncNotifications(); },
+  speak: d => speak(d.w, d.audio),
+  editDe: () => { ui.editDe = true; render(); const i = document.getElementById('deEdit'); if(i) i.focus(); },
+  del: () => {
+    if(!ui.delArm){ ui.delArm = true; render(); return; }
+    db.words = db.words.filter(w => w.id !== ui.detail); save(); syncNotifications(); toast('Wort gelöscht'); go('words');
+  },
+  set: d => { const k = d.k; db.settings[k] = (k === 'dir') ? d.v : Number(d.v); save(); if(k === 'freq') buildSchedule(); else syncNotifications(); render(); },
+  reroll: () => { buildSchedule(); toast('Neue Testzeiten gewürfelt'); render(); },
+  notify: async () => {
+    if(db.settings.notify){ db.settings.notify = false; save(); render(); syncNotifications(); return; }
+    if(NATIVE){
+      const p = await nativePermission(true); ui.perm = p;
+      db.settings.notify = p === 'granted'; save(); render(); syncNotifications();
+      if(p !== 'granted') toast('Bitte in den Android-Einstellungen Benachrichtigungen erlauben');
+      return;
+    }
+    const p = await Notification.requestPermission();
+    db.settings.notify = p === 'granted'; save(); render();
+    if(p !== 'granted') toast('Benachrichtigungen wurden nicht erlaubt');
+  },
+  export: async () => {
+    const json = JSON.stringify({app:'vokabeltrainer', version:1, exported:new Date().toISOString(), words:db.words, settings:db.settings, stats:db.stats}, null, 2);
+    if(NATIVE){
+      try{ await navigator.clipboard.writeText(json); toast(`Backup mit ${db.words.length} Wörtern kopiert`); }
+      catch(e){ toast('Kopieren hat nicht geklappt'); }
+      return;
+    }
+    const blob = new Blob([json], {type:'application/json'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `vokabeln-backup-${dayKey()}.json`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  },
+  import: () => {
+    if(NATIVE){ const t = prompt('Backup-Text hier einfügen:'); if(t) importBackup(t); return; }
+    document.getElementById('importFile').click();
+  },
+  pick: d => { const Q = ui.quiz, q = Q.qs[Q.i]; if(Q.picked !== null) return; Q.picked = Number(d.i); answer(q.options[Q.picked] === q.correct); renderQuiz(); },
+  reveal: () => { ui.quiz.revealed = true; renderQuiz(); },
+  flip: d => { answer(d.ok === '1'); renderQuiz(); },
+  next: () => nextQ(),
+  quizClose: () => { if(history.state && history.state.quiz) history.back(); else closeQuiz(); }
+};
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-act]'); if(!el || el.disabled) return;
+  const f = ACT[el.dataset.act]; if(f){ e.preventDefault(); f(el.dataset); }
+});
+document.addEventListener('submit', e => {
+  e.preventDefault();
+  if(e.target.id === 'lookupForm'){ const v = document.getElementById('wordIn').value; document.getElementById('wordIn').blur(); doLookup(v); }
+  if(e.target.id === 'saveForm'){
+    const d = ui.lookup && ui.lookup.data; if(!d) return;
+    const de = document.getElementById('deIn').value.split(/[,;]/).map(s => s.trim()).filter(Boolean);
+    if(!de.length){ toast('Bitte mindestens eine deutsche Bedeutung eintragen'); document.getElementById('deIn').focus(); return; }
+    const ex = document.getElementById('exDeIn');
+    const w = makeWord({...d, de, exDe: ex ? ex.value.trim() : d.exDe});
+    db.words.push(w); save(); syncNotifications(); toast(`„${w.en}“ gespeichert`);
+    ui.lookup = null; render();
+    const i = document.getElementById('wordIn'); if(i) i.focus();
+  }
+  if(e.target.id === 'deForm'){
+    const w = db.words.find(x => x.id === ui.detail);
+    const de = document.getElementById('deEdit').value.split(/[,;]/).map(s => s.trim()).filter(Boolean);
+    if(w && de.length){ w.de = de; save(); }
+    ui.editDe = false; render();
+  }
+});
+document.addEventListener('input', e => {
+  if(e.target.id === 'q'){ ui.q = e.target.value; document.getElementById('rows').innerHTML = wordRows(); }
+});
+document.addEventListener('change', e => {
+  if(e.target.id === 'tStart' || e.target.id === 'tEnd'){
+    db.settings[e.target.id === 'tStart' ? 'start' : 'end'] = e.target.value || (e.target.id === 'tStart' ? '08:00' : '21:00');
+    buildSchedule(); save(); render();
+  }
+  if(e.target.id === 'importFile' && e.target.files[0]){
+    const r = new FileReader();
+    r.onload = () => importBackup(r.result);
+    r.readAsText(e.target.files[0]); e.target.value = '';
+  }
+});
+
+function importBackup(text){
+  try{
+    const j = JSON.parse(text); if(!Array.isArray(j.words)) throw 0;
+    let added = 0; j.words.forEach(w => { if(w && w.en && !findWord(w.en)){ db.words.push({...makeWord(w), ...w, id: w.id || uid()}); added++; } });
+    if(j.settings) db.settings = {...DEFAULTS, ...j.settings, notify: db.settings.notify};
+    save(); buildSchedule(); toast(`${added} Wörter importiert`); render();
+  }catch(err){ toast('Das ist kein gültiges Backup'); }
+}
+
+/* ============ Start ============ */
+history.replaceState({screen:'home'}, '');
+ensureSchedule();
+render();
+setInterval(checkDue, 30000);
+document.addEventListener('visibilitychange', () => { if(!document.hidden){ checkDue(); if(!ui.quiz) render(); } });
+setTimeout(checkDue, 1500);
+if(NATIVE){
+  // Beim ersten Start einmal um Erlaubnis für Benachrichtigungen fragen
+  (async () => {
+    if(!db.settings.askedNotify){
+      db.settings.askedNotify = true;
+      const p = await nativePermission(true); ui.perm = p;
+      db.settings.notify = p === 'granted'; save();
+    } else ui.perm = await nativePermission(false);
+    syncNotifications();
+  })();
+  if(LN) LN.addListener('localNotificationActionPerformed', a => {
+    if(a && a.notification && a.notification.extra && a.notification.extra.quiz && !ui.quiz){ checkDue(); startQuiz(); }
+  });
+  if(APP){
+    APP.addListener('backButton', ({canGoBack}) => {
+      if(document.getElementById('banner').classList.contains('show')) hideBanner();
+      else if(canGoBack && (ui.quiz || ui.screen !== 'home')) history.back();
+      else if(ui.screen !== 'home') go('home');
+      else APP.exitApp();
+    });
+    APP.addListener('resume', () => { checkDue(); syncNotifications(); if(!ui.quiz) render(); });
+  }
+}
+if(!NATIVE && 'serviceWorker' in navigator && location.protocol.startsWith('http')){
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>

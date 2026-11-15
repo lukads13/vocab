@@ -1,0 +1,18 @@
+{
+  "name": "vocab",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Vokabeltrainer EN–DE mit Spontan-Tests",
+  "scripts": {
+    "sync": "cap sync android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.6.2",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/core": "^8.6.2",
+    "@capacitor/local-notifications": "^8.3.1"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.6.2"
+  }
+}
