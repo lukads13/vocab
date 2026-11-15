@@ -129,6 +129,7 @@ nav.tabs button[aria-current="page"] span{background:var(--accent-soft)}
 <div id="overlay"></div>
 <div id="toast" role="status" aria-live="polite"></div>
 
+<script src="build-info.js"></script>
 <script>
 'use strict';
 /* ============ Icons ============ */
@@ -217,6 +218,41 @@ function nextTest(){ ensureSchedule(); const n = Date.now(), sc = S(); return sc
 const NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
 const PLUG = name => NATIVE ? ((window.Capacitor.Plugins && window.Capacitor.Plugins[name]) || (window.Capacitor.registerPlugin && window.Capacitor.registerPlugin(name))) : null;
 const LN = PLUG('LocalNotifications'), APP = PLUG('App');
+
+/* ============ Update-Prüfung (GitHub-Releases) ============ */
+const BUILD = window.BUILD_INFO || { version:'dev', repo:'lukads13/vocab', token:'' };
+let appVersion = BUILD.version;
+const verNum = v => { const m = String(v||'').match(/(\d+)\.(\d+)\.(\d+)/); return m ? [+m[1], +m[2], +m[3]] : null; };
+const isNewer = (a, b) => { for(let i=0;i<3;i++) if(a[i] !== b[i]) return a[i] > b[i]; return false; };
+async function loadVersion(){ if(APP){ try{ const i = await APP.getInfo(); if(i && i.version) appVersion = i.version; }catch(e){} } return appVersion; }
+function updateAvailable(){
+  const u = db.update, cur = verNum(appVersion), lat = u && verNum(u.latest);
+  return !!(cur && lat && isNewer(lat, cur));
+}
+async function checkUpdate(manual){
+  if(ui.upd === 'checking') return;
+  ui.upd = 'checking'; if(manual && !ui.quiz) render();
+  try{
+    const headers = { Accept:'application/vnd.github+json' };
+    if(BUILD.token) headers.Authorization = 'Bearer ' + BUILD.token;
+    const r = await fetch(`https://api.github.com/repos/${BUILD.repo}/releases/latest`, { headers, cache:'no-store' });
+    if([401,403,404].includes(r.status)) throw { code:'noaccess' };
+    if(!r.ok) throw { code:'net' };
+    const j = await r.json();
+    const apk = (j.assets||[]).find(a => /\.apk$/i.test(a.name));
+    db.update = { lastCheck:Date.now(), latest:String(j.tag_name||'').replace(/^v/,''), url: (!BUILD.token && apk) ? apk.browser_download_url : j.html_url, page:j.html_url, dismissed: db.update && db.update.dismissed };
+    save();
+    await loadVersion();
+    ui.upd = updateAvailable() ? 'available' : verNum(appVersion) ? 'current' : 'dev';
+    if(manual && ui.upd === 'current') toast('Du hast die neueste Version');
+  }catch(e){
+    ui.upd = e && e.code === 'noaccess' ? 'noaccess' : 'error';
+    if(manual) toast(ui.upd === 'noaccess' ? 'Kein Zugriff auf die GitHub-Releases' : 'Update-Prüfung fehlgeschlagen – Internet?');
+  }
+  if(!ui.quiz) render();
+}
+function autoCheckUpdate(){ if(NATIVE && (!db.update || Date.now() - (db.update.lastCheck||0) > 6*36e5)) checkUpdate(false); }
+function openUrl(url){ if(url) window.location.href = url; }  // in der Android-App öffnet das den Browser
 async function nativePermission(ask){
   if(!LN) return 'denied';
   try{ let p = await LN.checkPermissions(); if(p.display !== 'granted' && ask) p = await LN.requestPermissions(); return p.display; }catch(e){ return 'denied'; }
@@ -306,6 +342,11 @@ home(){
   <div class="row between">
     <div><p class="small muted">${DAYS[d.getDay()]}, ${d.getDate()}. ${MONTHS[d.getMonth()]}</p><h1 style="margin-top:2px">${greeting()}</h1></div>
   </div>
+  ${NATIVE && updateAvailable() && db.update.dismissed !== db.update.latest ? `
+  <div class="card stack" style="gap:12px;border-color:var(--accent);background:var(--accent-soft)">
+    <div><p style="font-weight:700;color:var(--accent-ink)">Neue Version ${esc(db.update.latest)} verfügbar</p><p class="small" style="color:var(--accent-ink);margin-top:2px">Du hast ${esc(appVersion)}. Das Update installiert sich über die alte Version, deine Vokabeln bleiben.</p></div>
+    <div class="row" style="gap:10px"><button class="btn" style="flex:1" data-act="updOpen">Herunterladen</button><button class="btn line" data-act="updLater">Später</button></div>
+  </div>` : ''}
   <div class="grid3">
     <div class="stat"><b>${db.words.length}</b><span>Vokabeln</span></div>
     <div class="stat"><b>${db.stats.streak||0}</b><span>Tage Serie</span></div>
@@ -408,6 +449,7 @@ settings(){
     <div class="setrow"><div><p style="font-weight:600">Heutige Zeiten neu würfeln</p><p class="small muted">${open === 1 ? 'Heute noch 1 Test offen' : `Heute noch ${open} Tests offen`}</p></div>
       <button class="btn line" style="height:44px" data-act="reroll">Würfeln</button></div>
   </div>
+  ${NATIVE ? appCard() : ''}
   <div class="card stack" style="gap:12px">
     <h2>Daten</h2>
     <p class="small muted" style="line-height:1.5">Alles bleibt nur auf diesem Gerät. Mach ab und zu ein Backup – damit kannst du die Liste auch auf ein anderes Handy übertragen.${NATIVE ? ' „Kopieren“ legt das Backup in die Zwischenablage, z. B. zum Einfügen in eine Notiz oder Mail.' : ''}</p>
@@ -423,6 +465,23 @@ settings(){
 }
 };
 
+function appCard(){
+  const u = db.update, st = ui.upd;
+  const line = st === 'checking' ? 'Suche nach Updates …'
+    : updateAvailable() ? `Neue Version ${esc(u.latest)} verfügbar`
+    : st === 'noaccess' ? 'Kein Zugriff auf die GitHub-Releases (privates Repo ohne Lese-Token)'
+    : st === 'error' ? 'Prüfung fehlgeschlagen – keine Internetverbindung?'
+    : u && u.lastCheck ? `Aktuell · zuletzt geprüft ${new Date(u.lastCheck).toLocaleDateString('de-AT')} ${hhmm(u.lastCheck)}`
+    : 'Noch nicht geprüft';
+  return `<div class="card stack" style="gap:12px">
+    <div class="row between"><h2>App</h2><p class="small muted">Version ${esc(appVersion)}</p></div>
+    <p class="small ${updateAvailable() ? '' : 'muted'}" style="line-height:1.5;${updateAvailable() ? 'color:var(--accent-ink);font-weight:600' : ''}">${line}</p>
+    <div class="row wrap" style="gap:8px">
+      ${updateAvailable() ? `<button class="btn" data-act="updOpen">Herunterladen</button>` : ''}
+      <button class="btn line" data-act="updCheck" ${st === 'checking' ? 'disabled' : ''}>Nach Updates suchen</button>
+    </div>
+  </div>`;
+}
 function entryHead(d){
   return `<div class="stack" style="gap:8px">
     <div class="row wrap" style="align-items:baseline;gap:10px"><h2 style="font-size:32px;font-weight:700;letter-spacing:-.6px">${esc(d.en)}</h2>${d.ipa?`<span class="muted">${esc(d.ipa)}</span>`:''}
@@ -704,6 +763,9 @@ const ACT = {
   reveal: () => { ui.quiz.revealed = true; renderQuiz(); },
   flip: d => { answer(d.ok === '1'); renderQuiz(); },
   next: () => nextQ(),
+  updCheck: () => checkUpdate(true),
+  updOpen: () => openUrl(db.update && db.update.url),
+  updLater: () => { db.update.dismissed = db.update.latest; save(); render(); },
   quizClose: () => { if(history.state && history.state.quiz) history.back(); else closeQuiz(); }
 };
 document.addEventListener('click', e => {
@@ -761,6 +823,7 @@ render();
 setInterval(checkDue, 30000);
 document.addEventListener('visibilitychange', () => { if(!document.hidden){ checkDue(); if(!ui.quiz) render(); } });
 setTimeout(checkDue, 1500);
+loadVersion().then(() => { if(!ui.quiz) render(); autoCheckUpdate(); });
 if(NATIVE){
   // Beim ersten Start einmal um Erlaubnis für Benachrichtigungen fragen
   (async () => {
@@ -781,7 +844,7 @@ if(NATIVE){
       else if(ui.screen !== 'home') go('home');
       else APP.exitApp();
     });
-    APP.addListener('resume', () => { checkDue(); syncNotifications(); if(!ui.quiz) render(); });
+    APP.addListener('resume', () => { checkDue(); syncNotifications(); autoCheckUpdate(); if(!ui.quiz) render(); });
   }
 }
 if(!NATIVE && 'serviceWorker' in navigator && location.protocol.startsWith('http')){

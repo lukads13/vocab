@@ -14,6 +14,14 @@ Eine Android-App zum Lernen englischer Vokabeln. Über den Tag verteilt fragt si
 
 **Updates:** Jeder Push auf `main` (oder `android-app`) baut automatisch eine neue Version. Die neue APK installiert sich einfach über die alte, deine Vokabeln bleiben erhalten.
 
+**Update-Prüfung:** Die App schaut alle paar Stunden (und unter *Einstellungen → App → Nach Updates suchen*) nach, ob es ein neueres Release gibt. Wenn ja, zeigt sie auf der Startseite „Neue Version verfügbar“ mit einem Download-Button. Weil das Repo privat ist, braucht die App dafür einen Lese-Zugang:
+
+1. Auf GitHub unter *Settings → Developer settings → Personal access tokens → Fine-grained tokens* einen Token anlegen: nur Repository `vocab`, Berechtigung *Contents: Read-only*.
+2. Im Repo unter *Settings → Secrets and variables → Actions* ein Secret `UPDATE_TOKEN` mit diesem Token anlegen.
+3. Einmal neu bauen (Push oder *Actions → Android-APK bauen → Run workflow*).
+
+Der Token steckt dann in der APK und kann nur dieses Repo lesen. Ist das Repo öffentlich, braucht es keinen Token, und der Button lädt die APK direkt herunter.
+
 **Tipp:** Manche Hersteller (Samsung, Xiaomi, Huawei) stoppen Apps im Hintergrund aggressiv. Kommen die Tests nicht, in den Android-Einstellungen bei der App unter *Akku* „Nicht einschränken“ wählen.
 
 ## Aufbau

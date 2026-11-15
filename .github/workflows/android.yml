@@ -19,13 +19,19 @@ jobs:
           node-version: 22
           cache: npm
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 21
 
       - name: Abhängigkeiten installieren
         run: npm ci
+
+      - name: Versionsinfo für die Update-Prüfung schreiben
+        env:
+          UPDATE_TOKEN: ${{ secrets.UPDATE_TOKEN }}
+        run: |
+          node -e "require('fs').writeFileSync('www/build-info.js', 'window.BUILD_INFO = ' + JSON.stringify({ version: '1.0.' + process.env.GITHUB_RUN_NUMBER, repo: process.env.GITHUB_REPOSITORY, token: process.env.UPDATE_TOKEN || '' }) + ';\n')"
 
       - name: Web-App ins Android-Projekt kopieren
         run: npx cap sync android
