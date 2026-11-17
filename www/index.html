@@ -1223,7 +1223,7 @@ const ACT = {
   shareStatus: () => { ui.share.status = !ui.share.status; renderShare(); },
   shareTextGo: () => shareAsText(),
   shareImgGo: () => shareAsImage(),
-  shareCopy: async () => { try{ await copyText(shareText(shareWords())); toast('Liste kopiert'); }catch(e){ toast('Kopieren hat nicht geklappt'); } },
+  shareCopy: async () => { try{ await copyText(shareText(shareWords(), ui.share.link)); toast('Liste kopiert'); }catch(e){ toast('Kopieren hat nicht geklappt'); } },
   modalClose: () => closeModal(),
   bkPaste: async () => {
     try{ const t = await readClip(); const i = document.getElementById('bkIn'); if(i) i.value = t; bkCheck(t); if(!String(t).trim()) toast('Die Zwischenablage ist leer'); }
@@ -1439,10 +1439,30 @@ function bkCheck(text){
 }
 
 /* ============ Teilen ============ */
-function shareText(words){
+/* ---- Vokabeln im Link: komprimiert + base64url, kein Server nötig ---- */
+const LINK_MAX = 200;
+const b64u = u8 => { let s = ''; for(let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); };
+const unb64u = s => { s = s.replace(/-/g,'+').replace(/_/g,'/'); while(s.length % 4) s += '='; return Uint8Array.from(atob(s), c => c.charCodeAt(0)); };
+async function packShare(words){
+  const json = JSON.stringify({ v:1, w: words.map(w => [w.en, w.de.join('; '), w.ipa||'', w.pos||'', w.ex||'', w.exDe||'']) });
+  const bytes = new TextEncoder().encode(json);
+  if('CompressionStream' in window){
+    try{ const z = new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(new CompressionStream('deflate-raw'))).arrayBuffer()); return 'z' + b64u(z); }catch(e){}
+  }
+  return 'j' + b64u(bytes);
+}
+async function unpackShare(code){
+  let bytes = unb64u(code.slice(1));
+  if(code[0] === 'z') bytes = new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer());
+  const j = JSON.parse(new TextDecoder().decode(bytes));
+  return (j.w||[]).map(a => ({ en:String(a[0]||'').trim(), de:String(a[1]||'').split(/;\s*/).map(x => x.trim()).filter(Boolean), ipa:a[2]||'', pos:a[3]||'', ex:a[4]||'', exDe:a[5]||'' })).filter(x => x.en);
+}
+function shareBase(){ const [owner, repo] = String(BUILD.repo || 'lukads13/vocab').split('/'); return `https://${owner.toLowerCase()}.github.io/${repo}/i/`; }
+function shareText(words, link){
   const n = words.length;
   const lines = words.map(w => `• ${w.en} – ${w.de.join(', ')}` + (n === 1 && w.ex ? `\n   „${w.ex}“` : ''));
-  return `📚 ${n === 1 ? 'Vokabel' : `Vokabeln (${n})`} zum Lernen\n${lines.join('\n')}\n\n→ In der Vokabel-App: Hinzufügen → Liste → einfügen`;
+  return `📚 ${n === 1 ? 'Vokabel' : `Vokabeln (${n})`} zum Lernen\n${lines.join('\n')}\n\n`
+    + (link ? `👉 In die Vokabel-App übernehmen:\n${link}` : '→ In der Vokabel-App: Hinzufügen → Liste → einfügen');
 }
 const IMG_MAX = 30;
 function drawShareImage(words, withStatus){
@@ -1519,8 +1539,10 @@ function drawShareImage(words, withStatus){
   return cv;
 }
 function shareWords(){ return (ui.share ? ui.share.ids : []).map(id => db.words.find(w => w.id === id)).filter(Boolean); }
-function openShare(ids){
-  ui.share = { ids, status: false }; ui.modal = 'share';
+async function openShare(ids){
+  ui.share = { ids, status: false, link: '' }; ui.modal = 'share';
+  const ws = shareWords();
+  if(ws.length && ws.length <= LINK_MAX){ try{ ui.share.link = shareBase() + '#' + await packShare(ws); }catch(e){} }
   renderShare();
 }
 function renderShare(){
@@ -1535,10 +1557,11 @@ function renderShare(){
       <button class="switch" aria-label="Mein Lernstand im Bild" aria-pressed="${ui.share.status}" data-act="shareStatus"><span></span></button></div>
     <button class="btn full" style="height:52px;border-radius:26px" data-act="shareTextGo">${ico('share',18,'style="vertical-align:-4px;margin-right:6px"')}Als Text teilen</button>
     <button class="btn line full" data-act="shareImgGo">Als Bild teilen</button>
-    <button class="link" style="align-self:center" data-act="shareCopy">Liste kopieren</button>`);
+    <button class="link" style="align-self:center" data-act="shareCopy">Liste kopieren</button>
+    <p class="small muted" style="text-align:center;line-height:1.45">${ui.share.link ? 'Der Text enthält einen Link – damit landen die Wörter mit einem Tipp in der App des Empfängers.' : `Für mehr als ${LINK_MAX} Wörter gibt es keinen Link – die Liste lässt sich aber einfügen.`}</p>`);
 }
 async function shareAsText(){
-  const t = shareText(shareWords());
+  const t = shareText(shareWords(), ui.share.link);
   try{
     if(SHARE){ await SHARE.share({ text:t, dialogTitle:'Vokabeln teilen' }); return; }
     if(navigator.share){ await navigator.share({ text:t }); return; }
@@ -1546,7 +1569,7 @@ async function shareAsText(){
   }catch(e){ if(e && e.name !== 'AbortError' && !/cancel/i.test(String(e.message||e))) toast('Teilen hat nicht geklappt'); }
 }
 async function shareAsImage(){
-  const ws = shareWords(), t = shareText(ws), url = ui.share.png, b64 = url.split(',')[1];
+  const ws = shareWords(), t = shareText(ws, ui.share.link), url = ui.share.png, b64 = url.split(',')[1];
   const name = `vokabeln-${Date.now()}.png`;
   try{
     if(SHARE && FS){
@@ -1558,6 +1581,33 @@ async function shareAsImage(){
     const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
     toast('Bild gespeichert');
   }catch(e){ if(e && e.name !== 'AbortError' && !/cancel/i.test(String(e.message||e))) toast('Teilen hat nicht geklappt'); }
+}
+
+/* ============ Geteilten Link öffnen ============ */
+let lastUrl = '';
+async function handleOpenUrl(url){
+  if(!url || url === lastUrl) return; lastUrl = url;
+  let code = '';
+  try{ const u = new URL(url); if(u.protocol !== 'vokabeln:') return; code = u.searchParams.get('d') || ''; }catch(e){ return; }
+  if(!code) return;
+  let items;
+  try{ items = await unpackShare(code); }catch(e){ toast('Der Link ist ungültig oder unvollständig'); return; }
+  importShared(items);
+}
+function importShared(items){
+  db.queue = db.queue || [];
+  let added = 0, skipped = 0;
+  for(const it of items){
+    if(findWord(it.en) || db.queue.some(q => norm(q.en) === norm(it.en))){ skipped++; continue; }
+    db.queue.push({ id:uid(), lang:'en', en:it.en, deUser:null, status:'done', note:'', deText: it.de.join(', '),
+      data: { ...emptyData(it.en), de:it.de, ipa:it.ipa, pos:it.pos, ex:it.ex, exDe:it.exDe } });
+    added++;
+  }
+  save();
+  if(ui.quiz) closeQuiz(); if(ui.cards) closeCards(); if(!document.getElementById('modal').hidden) closeModal(); hideBanner();
+  db.settings.inLang = 'en'; ui.addMode = 'list'; go('add');
+  toast(added ? `${added} ${added === 1 ? 'Vokabel' : 'Vokabeln'} aus dem Link – bitte prüfen${skipped ? ` · ${skipped} schon vorhanden` : ''}`
+              : 'Diese Vokabeln hast du schon alle');
 }
 
 /* ============ Mehrfachauswahl in der Vokabelliste ============ */
@@ -1619,6 +1669,8 @@ if(NATIVE){
       else if(ui.screen !== 'home') go('home');
       else APP.exitApp();
     });
+    APP.addListener('appUrlOpen', e => handleOpenUrl(e && e.url));
+    if(APP.getLaunchUrl) APP.getLaunchUrl().then(r => { if(r && r.url) handleOpenUrl(r.url); }).catch(() => {});
     APP.addListener('resume', () => { checkDue(); syncNotifications(); autoCheckUpdate(); if(!ui.quiz) render(); });
   }
 }

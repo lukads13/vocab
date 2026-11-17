@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vokabeltrainer EN–DE</title>
+<link rel="icon" href="icon-192.png">
+<style>
+body{margin:0;background:#F4F3EF;color:#18181C;font-family:system-ui,-apple-system,Roboto,"Segoe UI",sans-serif}
+main{max-width:480px;margin:0 auto;padding:40px 20px;display:flex;flex-direction:column;gap:16px}
+h1{margin:0;font-size:28px;letter-spacing:-.5px}
+p{margin:0;line-height:1.5;color:#5C5D66}
+img{width:64px;height:64px;border-radius:18px}
+a.btn{display:flex;align-items:center;justify-content:center;min-height:54px;border-radius:27px;background:#3442C4;color:#fff;font-weight:600;text-decoration:none}
+a.btn:focus-visible{outline:3px solid #F2B441;outline-offset:2px}
+</style>
+</head>
+<body>
+<main>
+  <img src="icon-192.png" alt="">
+  <h1>Vokabeltrainer EN–DE</h1>
+  <p>Englische Vokabeln sammeln, mit Übersetzung und Wörterbuch-Kontext – und spontan über den Tag verteilt abgefragt werden. Alle Daten bleiben auf deinem Handy.</p>
+  <a class="btn" id="dl" href="#">App herunterladen (Android)</a>
+</main>
+<script>
+const owner = location.hostname.split('.')[0], repo = location.pathname.split('/').filter(Boolean)[0] || 'vocab';
+document.getElementById('dl').href = `https://github.com/${owner}/${repo}/releases/latest`;
+</script>
+</body>
+</html>
