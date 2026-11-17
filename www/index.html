@@ -33,9 +33,28 @@ main{flex:1;padding:calc(env(safe-area-inset-top) + 20px) 20px 180px}
 .listen{width:120px;height:120px;border-radius:60px;border:none;background:var(--amber);color:var(--ink);display:flex;align-items:center;justify-content:center;margin:8px auto}
 .zettel{position:relative;background:#fff;color:var(--ink);border-radius:28px;min-height:360px;padding:28px 22px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;box-shadow:0 12px 40px rgba(0,0,0,.35);touch-action:pan-y;user-select:none;-webkit-user-select:none;transition:transform .2s;cursor:grab}
 .zettel.drag{transition:none}
-.zettel .stamp{position:absolute;top:18px;padding:6px 12px;border-radius:10px;font-weight:800;font-size:14px;letter-spacing:.5px;text-transform:uppercase;opacity:0;border:2px solid}
-.zettel .stamp.ok{right:18px;color:#1D5E38;border-color:#1D5E38;transform:rotate(8deg)}
-.zettel .stamp.no{left:18px;color:#A3271A;border-color:#A3271A;transform:rotate(-8deg)}
+.zettel .stamp{position:absolute;top:20px;padding:8px 16px;border-radius:14px;font-weight:900;font-size:26px;letter-spacing:1px;text-transform:uppercase;opacity:0;border:4px solid;background:#fff}
+.zettel .stamp.ok{left:18px;color:#1D5E38;border-color:#1D5E38;transform:rotate(-10deg)}
+.zettel .stamp.no{right:18px;color:#B4510A;border-color:#B4510A;transform:rotate(10deg)}
+.btn.again{background:#4A2C0B;border:1.5px solid #FF9F45;color:#fff}
+.modal{position:fixed;inset:0;z-index:25;background:rgba(24,24,28,.45);overflow-y:auto}
+.modal[hidden]{display:none}
+.mbox{width:calc(100% - 24px);max-width:456px;margin:calc(env(safe-area-inset-top) + 16px) auto 24px;background:#fff;border-radius:28px;padding:20px;display:flex;flex-direction:column;gap:12px}
+.bkin{height:64px!important;min-height:64px!important;overflow:hidden;resize:none;font-size:12px!important;line-height:1.35;color:var(--muted)!important;font-family:ui-monospace,monospace}
+.okline{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;padding:10px 12px;border-radius:12px}
+.okline.ok{background:var(--ok-bg);color:var(--ok-fg)} .okline.bad{background:#FBE3DF;color:#8E2418}
+.shareimg{width:100%;max-height:42vh;object-fit:contain;border-radius:16px;background:var(--bg);border:1px solid var(--line)}
+.wordrow{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+.wordrow.sel{background:var(--accent-soft);border-color:var(--accent)}
+.check{flex:none;width:26px;height:26px;border-radius:13px;border:2px solid #B9B7AF;display:flex;align-items:center;justify-content:center;color:#fff}
+.wordrow.sel .check{background:var(--accent);border-color:var(--accent)}
+.selhead{position:sticky;top:0;z-index:4;margin:calc(-1 * (env(safe-area-inset-top) + 20px)) -20px 0;padding:calc(env(safe-area-inset-top) + 12px) 12px 12px;background:var(--bg);display:flex;align-items:center;gap:6px;border-bottom:1px solid var(--line)}
+.selbar{position:fixed;left:0;right:0;z-index:7;bottom:calc(env(safe-area-inset-bottom) + 78px);padding:0 12px}
+.selbar[hidden]{display:none}
+.selbar .in{max-width:456px;margin:0 auto;background:var(--ink);color:#fff;border-radius:22px;padding:6px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+.selbar button{border:none;background:transparent;color:#fff;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:12px;font-weight:600;padding:8px 0;border-radius:16px}
+.selbar button:disabled{opacity:.4}
+.selbar button.arm{background:#8E2418}
 .pbar{height:6px;border-radius:3px;background:var(--dark3);overflow:hidden}
 .pbar i{display:block;height:100%;background:var(--amber)}
 h1{margin:0;font-size:28px;font-weight:700;letter-spacing:-.5px}
@@ -131,7 +150,7 @@ nav.tabs button[aria-current="page"] span{background:var(--accent-soft)}
 #banner{position:fixed;inset:0;z-index:15;background:rgba(24,24,28,.35);display:none}
 #banner.show{display:block}
 #banner .box{max-width:456px;margin:calc(env(safe-area-inset-top) + 16px) auto 0;width:calc(100% - 24px);background:#fff;border-radius:28px;padding:18px;box-shadow:0 12px 40px rgba(0,0,0,.22);display:flex;flex-direction:column;gap:12px}
-#toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 100px);transform:translateX(-50%);background:var(--ink);color:#fff;padding:12px 18px;border-radius:14px;font-size:14px;z-index:30;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90%}
+#toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 176px);transform:translateX(-50%);background:var(--ink);color:#fff;padding:12px 18px;border-radius:14px;font-size:14px;z-index:30;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90%}
 #toast.show{opacity:1}
 </style>
 </head>
@@ -144,6 +163,8 @@ nav.tabs button[aria-current="page"] span{background:var(--accent-soft)}
 <button id="fab" class="fab" data-act="go" data-to="add" aria-label="Vokabel hinzufügen" hidden><svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
 
 <div id="banner" role="alertdialog" aria-label="Spontan-Test"></div>
+<div id="selbar" class="selbar" hidden><div class="in" id="selbarIn"></div></div>
+<div id="modal" class="modal" hidden role="dialog" aria-modal="true"></div>
 <div id="overlay"></div>
 <div id="toast" role="status" aria-live="polite"></div>
 
@@ -161,7 +182,10 @@ const I = {
   search:'<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
   check:'<path d="M5 12.5l4.5 4.5L19 7.5"/>',
   x:'<path d="M6 6l12 12M18 6 6 18"/>',
-  speaker:'<path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/>'
+  speaker:'<path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/>',
+  share:'<path d="M4 13v6a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-6M12 3v12M7 8l5-5 5 5"/>',
+  trash:'<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',
+  cards:'<rect x="4" y="6" width="13" height="15" rx="2"/><path d="M8 3h10a2 2 0 0 1 2 2v12"/>'
 };
 const ico = (n, s=22, extra='') => `<svg aria-hidden="true" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" ${extra}>${I[n]}</svg>`;
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -304,7 +328,7 @@ async function doSync(){
 const ui = { screen:'home', detail:null, filter:'all', q:'', lookup:null, quiz:null, delArm:false, editDe:false };
 
 function go(screen, opts={}){
-  Object.assign(ui, {screen, delArm:false, editDe:false}, opts);
+  Object.assign(ui, {screen, delArm:false, editDe:false, sel:null, selDelArm:false}, opts);
   if(!opts.noHistory) history.pushState({screen, detail:ui.detail}, '');
   render(); window.scrollTo(0,0);
 }
@@ -312,6 +336,7 @@ window.addEventListener('popstate', e => {
   if(ui.quiz){ closeQuiz(); return; }
   if(ui.cards){ closeCards(); return; }
   if(document.getElementById('banner').classList.contains('show')){ hideBanner(); return; }
+  if(ui.sel && !(e.state && e.state.sel)){ ui.sel = null; ui.selDelArm = false; render(); return; }
   const st = e.state || {screen:'home'}; Object.assign(ui, {screen:st.screen, detail:st.detail||null, delArm:false, editDe:false}); render();
 });
 
@@ -320,7 +345,8 @@ function render(){
   const v = VIEWS[ui.screen] || VIEWS.home;
   document.getElementById('main').innerHTML = v();
   renderTabs();
-  document.getElementById('fab').hidden = !(ui.screen === 'home' || ui.screen === 'words');
+  document.getElementById('fab').hidden = !(ui.screen === 'home' || (ui.screen === 'words' && !ui.sel));
+  renderSelbar();
 }
 function renderTabs(){
   const t = [['home','Start','home',['home']],['words','Vokabeln','list',['words','detail']],['tests','Tests','bolt',['tests']],['settings','Einstellungen','gear',['settings']]];
@@ -329,12 +355,22 @@ function renderTabs(){
 }
 function wordRow(w, withBar){
   const [st, cls] = status(w);
-  return `<button class="wordrow" data-act="open" data-id="${w.id}">
+  const selMode = withBar && ui.sel, on = selMode && ui.sel.includes(w.id);
+  return `<button class="wordrow${on ? ' sel' : ''}" data-act="open" data-id="${w.id}" ${withBar ? 'data-lp="1"' : ''} ${selMode ? `aria-pressed="${!!on}"` : ''}>
     <span class="row between" style="width:100%">
-      <span style="display:flex;flex-direction:column;gap:2px;min-width:0">
+      ${selMode ? `<span class="check" aria-hidden="true">${on ? ico('check',16,'stroke-width="3"') : ''}</span>` : ''}
+      <span style="display:flex;flex-direction:column;gap:2px;min-width:0;flex:1">
         <span class="w">${esc(w.en)}</span><span class="small muted">${esc(w.de.join(', '))}</span>
       </span><span class="chip ${cls}">${st}</span>
     </span>${withBar ? `<span class="bar"><i style="width:${w.box*20}%"></i></span>` : ''}</button>`;
+}
+function visibleWords(){
+  const q = norm(ui.q);
+  return [...db.words].sort((a,b) => b.created - a.created).filter(w => {
+    if(ui.filter !== 'all' && status(w)[1] !== ui.filter) return false;
+    if(!q) return true;
+    return norm(w.en).includes(q) || w.de.some(x => x.toLowerCase().includes(q));
+  });
 }
 function wordRows(){
   const q = norm(ui.q);
@@ -401,8 +437,16 @@ home(){
 
 words(){
   const f = [['all','Alle'],['new','Neu'],['learn','Lernend'],['sure','Sicher']];
+  const head = ui.sel
+    ? `<div class="selhead">
+        <button class="link" style="color:var(--ink);min-width:44px;display:flex;align-items:center;justify-content:center" data-act="selCancel" aria-label="Auswahl beenden">${ico('x',22)}</button>
+        <p style="flex:1;font-size:18px;font-weight:700">${ui.sel.length} ausgewählt</p>
+        <button class="link" data-act="selAll">${visibleWords().every(w => ui.sel.includes(w.id)) ? 'Keine' : 'Alle'}</button>
+      </div>`
+    : `<div class="row between" style="align-items:baseline"><h1>Meine Vokabeln</h1><p class="muted small">${db.words.length} Wörter</p></div>`;
   return `<div class="stack" style="gap:14px">
-  <div class="row between" style="align-items:baseline"><h1>Meine Vokabeln</h1><p class="muted small">${db.words.length} Wörter</p></div>
+  ${head}
+  ${ui.sel || !db.words.length ? '' : '<p class="small muted" style="margin-top:-6px">Tipp: Lange drücken, um mehrere Wörter auszuwählen.</p>'}
   <div class="search">${ico('search',20)}<label class="sr" for="q">Suchen</label><input id="q" type="search" placeholder="Englisch oder Deutsch suchen" value="${esc(ui.q)}" autocomplete="off"></div>
   <div class="filters">${f.map(([k,l]) => `<button data-act="filter" data-f="${k}" aria-pressed="${ui.filter===k}">${l}</button>`).join('')}</div>
   <div class="stack" style="gap:8px" id="rows">${wordRows()}</div>
@@ -458,7 +502,8 @@ detail(){
   if(!w) return VIEWS.words();
   const [st] = status(w);
   return `<div class="stack" style="gap:14px">
-  <button class="back" data-act="back">${ico('back')} Vokabeln</button>
+  <div class="row between"><button class="back" data-act="back">${ico('back')} Vokabeln</button>
+    <button class="btn line" style="height:44px;display:flex;align-items:center;gap:6px" data-act="shareOne" data-id="${w.id}">${ico('share',18)} Teilen</button></div>
   <div class="card stack" style="gap:18px;border-radius:28px;padding:22px">
     ${entryHead(w)}
     <div class="stack" style="gap:8px"><p class="label">Deutsch</p>
@@ -699,6 +744,8 @@ function parseList(text){
   // „ – “ / „ - “ / „ = “ (mit Leerzeichen), „/“ (mit oder ohne Leerzeichen), „: “ oder Tabulator
   const sep = /\t|\s[-–=]\s|\s*\/\s*|\s*:\s+/;
   let lines = String(text||'').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  // Geteilte Liste aus der App: nur die Zeilen mit • sind Vokabeln (Überschrift, Beispielsätze, Hinweis ignorieren)
+  if(lines.filter(l => /^•\s*\S/.test(l)).length) lines = lines.filter(l => /^•\s*\S/.test(l));
   if(lines.length === 1){
     const chunks = lines[0].split(/[,;]/).map(l => l.trim()).filter(Boolean);
     const withSep = chunks.filter(c => sep.test(c)).length;
@@ -1078,10 +1125,10 @@ function renderCards(){
     </div>
     <div style="flex:1"></div>
     ${C.flipped ? `<div class="row" style="gap:10px">
-        <button class="btn full" style="height:54px;background:#57211C;border:1.5px solid var(--bad)" data-act="cardNo">Nochmal</button>
+        <button class="btn full again" style="height:54px" data-act="cardNo">Nochmal</button>
         <button class="btn full" style="height:54px;background:#1E4A31;border:1.5px solid var(--good)" data-act="cardOk">Gewusst</button></div>`
       : `<button class="btn amber full" style="height:54px;border-radius:27px" data-act="cardFlip">Umdrehen</button>`}
-    <p class="small" style="color:var(--dark-muted);text-align:center">Wischen: nach rechts = gewusst, nach links = nochmal</p>
+    <p class="small" style="color:var(--dark-muted);text-align:center">Wischen: nach rechts = gewusst, nach links = nochmal üben</p>
   </div></div>`;
   bindSwipe();
 }
@@ -1153,7 +1200,36 @@ function toast(msg){ const t = document.getElementById('toast'); t.textContent =
 const ACT = {
   go: d => go(d.to),
   back: () => history.length > 1 && history.state && history.state.screen !== 'home' ? history.back() : go(ui.screen === 'add' ? 'home' : 'words'),
-  open: d => go('detail', {detail:d.id}),
+  open: d => {
+    if(ui.lpFired){ ui.lpFired = false; return; }   // Klick nach langem Drücken ignorieren
+    if(ui.sel && ui.screen === 'words'){
+      ui.sel = ui.sel.includes(d.id) ? ui.sel.filter(x => x !== d.id) : [...ui.sel, d.id];
+      ui.selDelArm = false; render(); return;
+    }
+    go('detail', {detail:d.id});
+  },
+  selCancel: () => endSel(),
+  selAll: () => { const v = visibleWords().map(w => w.id); ui.sel = v.every(id => ui.sel.includes(id)) ? [] : v; ui.selDelArm = false; render(); },
+  selShare: () => openShare([...ui.sel]),
+  selCards: () => { const ws = ui.sel.map(id => db.words.find(w => w.id === id)).filter(Boolean); startCards(ws, custom().front); },
+  selTest: () => { const ws = ui.sel.map(id => db.words.find(w => w.id === id)).filter(Boolean); startQuiz({ words: shuffle([...ws]), title:'Auswahl', dir:'mix', mode: custom().mode || 'choice' }); },
+  selDelete: () => {
+    if(!ui.selDelArm){ ui.selDelArm = true; renderSelbar(); return; }
+    const n = ui.sel.length; const del = new Set(ui.sel);
+    db.words = db.words.filter(w => !del.has(w.id)); db.mistakes = (db.mistakes||[]).filter(id => !del.has(id));
+    save(); syncNotifications(); toast(`${n} ${n === 1 ? 'Wort' : 'Wörter'} gelöscht`); endSel();
+  },
+  shareOne: d => openShare([d.id]),
+  shareStatus: () => { ui.share.status = !ui.share.status; renderShare(); },
+  shareTextGo: () => shareAsText(),
+  shareImgGo: () => shareAsImage(),
+  shareCopy: async () => { try{ await copyText(shareText(shareWords())); toast('Liste kopiert'); }catch(e){ toast('Kopieren hat nicht geklappt'); } },
+  modalClose: () => closeModal(),
+  bkPaste: async () => {
+    try{ const t = await readClip(); const i = document.getElementById('bkIn'); if(i) i.value = t; bkCheck(t); if(!String(t).trim()) toast('Die Zwischenablage ist leer'); }
+    catch(e){ toast('Kein Zugriff – bitte lange ins Feld drücken und „Einfügen“ wählen'); }
+  },
+  bkImport: () => { if(!parseBackup(ui.bkText)) return; importBackup(ui.bkText); closeModal(); },
   filter: d => { ui.filter = d.f; render(); },
   quiz: () => startQuiz(),
   snooze: () => { hideBanner(); S().times.push(Date.now() + 15*60000); save(); syncNotifications(); toast('Okay – in 15 Minuten nochmal'); },
@@ -1181,7 +1257,7 @@ const ACT = {
   export: async () => {
     const json = JSON.stringify({app:'vokabeltrainer', version:1, exported:new Date().toISOString(), words:db.words, settings:db.settings, stats:db.stats}, null, 2);
     if(NATIVE){
-      try{ await navigator.clipboard.writeText(json); toast(`Backup mit ${db.words.length} Wörtern kopiert`); }
+      try{ await copyText(json); toast(`Backup mit ${db.words.length} Wörtern kopiert`); }
       catch(e){ toast('Kopieren hat nicht geklappt'); }
       return;
     }
@@ -1189,7 +1265,7 @@ const ACT = {
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `vokabeln-backup-${dayKey()}.json`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   },
   import: () => {
-    if(NATIVE){ const t = prompt('Backup-Text hier einfügen:'); if(t) importBackup(t); return; }
+    if(NATIVE){ openBackupDialog(); return; }
     document.getElementById('importFile').click();
   },
   pick: d => { const Q = ui.quiz, q = Q.qs[Q.i]; if(Q.picked !== null) return; Q.picked = Number(d.i); answer(q.options[Q.picked] === q.correct); renderQuiz(); },
@@ -1291,6 +1367,7 @@ document.addEventListener('submit', e => {
 });
 document.addEventListener('input', e => {
   if(e.target.id === 'q'){ ui.q = e.target.value; document.getElementById('rows').innerHTML = wordRows(); }
+  if(e.target.id === 'bkIn') bkCheck(e.target.value);
   if(e.target.dataset && e.target.dataset.qen){
     const q = (db.queue||[]).find(x => x.id === e.target.dataset.qen);
     if(q){ q.en = e.target.value; save(); const h = document.getElementById('qhead'); if(h) h.innerHTML = queueHead(); }
@@ -1312,14 +1389,205 @@ document.addEventListener('change', e => {
   }
 });
 
+function parseBackup(text){
+  try{
+    const j = JSON.parse(String(text||'').trim());
+    if(!j || !Array.isArray(j.words)) return null;
+    const words = j.words.filter(w => w && w.en);
+    return { j, total: words.length, fresh: words.filter(w => !findWord(w.en)).length };
+  }catch(e){ return null; }
+}
 function importBackup(text){
   try{
-    const j = JSON.parse(text); if(!Array.isArray(j.words)) throw 0;
+    const j = JSON.parse(String(text||'').trim()); if(!Array.isArray(j.words)) throw 0;
     let added = 0; j.words.forEach(w => { if(w && w.en && !findWord(w.en)){ db.words.push({...makeWord(w), ...w, id: w.id || uid()}); added++; } });
     if(j.settings) db.settings = {...DEFAULTS, ...j.settings, notify: db.settings.notify};
     save(); buildSchedule(); toast(`${added} Wörter importiert`); render();
   }catch(err){ toast('Das ist kein gültiges Backup'); }
 }
+
+/* ============ Zwischenablage ============ */
+const CLIP = PLUG('Clipboard'), SHARE = PLUG('Share'), FS = PLUG('Filesystem');
+async function copyText(t){ if(CLIP) return CLIP.write({ string:t }); return navigator.clipboard.writeText(t); }
+async function readClip(){ if(CLIP){ const r = await CLIP.read(); return r && r.value || ''; } return navigator.clipboard.readText(); }
+
+/* ============ Fenster (Modal) ============ */
+function openModal(html){ const m = document.getElementById('modal'); m.innerHTML = `<div class="mbox">${html}</div>`; m.hidden = false; document.body.style.overflow = 'hidden'; }
+function closeModal(){ const m = document.getElementById('modal'); m.hidden = true; m.innerHTML = ''; ui.modal = null; if(!ui.quiz && !ui.cards) document.body.style.overflow = ''; }
+document.getElementById('modal').addEventListener('click', e => { if(e.target.id === 'modal') closeModal(); });
+
+/* ============ Backup einfügen ============ */
+function openBackupDialog(){
+  ui.modal = 'backup'; ui.bkText = '';
+  openModal(`<h2>Backup einfügen</h2>
+    <p class="small muted" style="line-height:1.45">Füge den kopierten Backup-Text ein. Er wird nicht komplett angezeigt – die App prüft ihn für dich.</p>
+    <button class="btn line full" data-act="bkPaste">Aus Zwischenablage einfügen</button>
+    <label class="sr" for="bkIn">Backup-Text</label>
+    <textarea id="bkIn" class="input bkin" rows="2" wrap="off" spellcheck="false" autocapitalize="none" autocomplete="off" placeholder="… oder hier lange drücken → Einfügen"></textarea>
+    <div id="bkStatus" aria-live="polite"></div>
+    <div class="row" style="gap:10px"><button class="btn line" data-act="modalClose">Abbrechen</button><button class="btn" style="flex:1" id="bkGo" data-act="bkImport" disabled>Importieren</button></div>`);
+}
+function bkCheck(text){
+  ui.bkText = text;
+  const r = parseBackup(text), st = document.getElementById('bkStatus'), go = document.getElementById('bkGo');
+  if(!st) return;
+  if(!String(text).trim()){ st.innerHTML = ''; go.disabled = true; return; }
+  st.innerHTML = r ? `<p class="okline ok">${ico('check',18,'stroke-width="2.6"')} Gültiges Backup · ${r.total} Wörter, davon ${r.fresh} neu</p>`
+                   : `<p class="okline bad">${ico('x',18,'stroke-width="2.6"')} Kein gültiges Backup</p>`;
+  go.disabled = !r;
+  if(r){ const i = document.getElementById('bkIn'); if(i) i.blur(); }   // Tastatur zu, Buttons bleiben sichtbar
+}
+
+/* ============ Teilen ============ */
+function shareText(words){
+  const n = words.length;
+  const lines = words.map(w => `• ${w.en} – ${w.de.join(', ')}` + (n === 1 && w.ex ? `\n   „${w.ex}“` : ''));
+  return `📚 ${n === 1 ? 'Vokabel' : `Vokabeln (${n})`} zum Lernen\n${lines.join('\n')}\n\n→ In der Vokabel-App: Hinzufügen → Liste → einfügen`;
+}
+const IMG_MAX = 30;
+function drawShareImage(words, withStatus){
+  const W = 1080, P = 64, F = (wt, sz, it) => `${it ? 'italic ' : ''}${wt} ${sz}px system-ui, -apple-system, Roboto, "Segoe UI", sans-serif`;
+  const C = { bg:'#F4F3EF', card:'#FFFFFF', ink:'#18181C', muted:'#5C5D66', line:'#E3E1DA', accent:'#3442C4', soft:'#E7E9FB', aink:'#2A35A0' };
+  const chipC = w => { const c = status(w)[1]; return c === 'new' ? ['#FCEFD2','#6B4500'] : c === 'sure' ? ['#DCF0E3','#1D5E38'] : ['#E7E9FB','#2A35A0']; };
+  const meas = document.createElement('canvas').getContext('2d');
+  const wrap = (t, font, maxW) => { meas.font = font; const out = []; let line = ''; for(const word of String(t).split(/\s+/)){ const test = line ? line + ' ' + word : word; if(meas.measureText(test).width > maxW && line){ out.push(line); line = word; } else line = test; } if(line) out.push(line); return out; };
+  const fit = (t, font, maxW) => { meas.font = font; if(meas.measureText(t).width <= maxW) return t; while(t.length > 1 && meas.measureText(t + '…').width > maxW) t = t.slice(0, -1); return t + '…'; };
+  const rr = (x, X, Y, w, h, r, fill) => { x.beginPath(); if(x.roundRect) x.roundRect(X, Y, w, h, r); else x.rect(X, Y, w, h); x.fillStyle = fill; x.fill(); };
+  let yy = 0;   // Gesamthöhe: erst Befehle sammeln und messen, dann zeichnen
+  const single = words.length === 1, inner = W - 2*P - 2*56, X0 = P + 56;
+  const cmds = []; const add = f => cmds.push(f);
+  if(single){
+    const w = words[0]; let cy = P + 56;
+    add(['card', P, P]);
+    add(['t', 'VOKABEL', F(700, 28), C.muted, X0, cy + 28]); cy += 28 + 36;
+    for(const l of wrap(w.en, F(800, 92), inner)){ add(['t', l, F(800, 92), C.ink, X0, cy + 80]); cy += 104; }
+    const meta = [w.ipa, w.pos].filter(Boolean).join('  ·  ');
+    if(meta){ add(['t', meta, F(400, 36), C.muted, X0, cy + 34]); cy += 60; }
+    cy += 28; add(['t', 'DEUTSCH', F(700, 28), C.muted, X0, cy + 28]); cy += 28 + 24;
+    for(const l of wrap(w.de.join(', '), F(700, 54), inner)){ add(['t', l, F(700, 54), C.aink, X0, cy + 48]); cy += 66; }
+    if(w.ex){
+      cy += 28; const exL = wrap(w.ex, F(500, 38), inner - 64), deL = w.exDe ? wrap(w.exDe, F(400, 34, true), inner - 64) : [];
+      const h = 40 + exL.length*52 + (deL.length ? 12 + deL.length*46 : 0) + 32;
+      add(['box', X0, cy, inner, h]); let by = cy + 40;
+      for(const l of exL){ add(['t', l, F(500, 38), C.ink, X0 + 32, by + 34]); by += 52; }
+      if(deL.length){ by += 12; for(const l of deL){ add(['t', l, F(400, 34, true), C.muted, X0 + 32, by + 30]); by += 46; } }
+      cy += h;
+    }
+    if(withStatus){
+      cy += 44; const [st] = status(w);
+      add(['t', `Mein Lernstand: ${st} · ${w.box} von 5`, F(600, 34), C.ink, X0, cy + 32]); cy += 54;
+      add(['bar', X0, cy, inner, 16, w.box/5]); cy += 16;
+    }
+    cy += 56; add(['cardEnd', cy]);
+    add(['t', 'Vokabeltrainer EN–DE', F(500, 28), C.muted, W/2, cy + 64, 'center']);
+    yy = cy + 64 + 48;
+  } else {
+    const shown = words.slice(0, IMG_MAX), more = words.length - shown.length;
+    let cy = P;
+    add(['t', 'Vokabeln zum Lernen', F(800, 64), C.ink, P, cy + 58]); cy += 84;
+    add(['t', `${words.length} Wörter`, F(500, 34), C.muted, P, cy + 30]); cy += 64;
+    const cardTop = cy; add(['card', P, cardTop]); cy += 20;
+    const chipW = 230, textW = inner - (withStatus ? chipW + 24 : 0);
+    shown.forEach((w, i) => {
+      cy += 26;
+      add(['t', fit(w.en, F(700, 44), textW), F(700, 44), C.ink, X0, cy + 40]);
+      if(withStatus){ const [st] = status(w), [bg, fg] = chipC(w); add(['chip', `${st} ${w.box}/5`, X0 + inner - chipW, cy + 2, chipW, 52, bg, fg]); }
+      cy += 54;
+      add(['t', fit(w.de.join(', '), F(400, 34), textW), F(400, 34), C.muted, X0, cy + 32]); cy += 46;
+      cy += 22; if(i < shown.length - 1) add(['line', X0, cy, inner]);
+    });
+    if(more > 0){ cy += 26; add(['t', `… und ${more} weitere (siehe Text)`, F(600, 34), C.accent, X0, cy + 32]); cy += 58; }
+    cy += 20; add(['cardEnd', cy]);
+    add(['t', 'Vokabeltrainer EN–DE', F(500, 28), C.muted, W/2, cy + 64, 'center']);
+    yy = cy + 64 + 48;
+  }
+  const cv = document.createElement('canvas'); cv.width = W; cv.height = Math.ceil(yy);
+  const x = cv.getContext('2d'); x.fillStyle = C.bg; x.fillRect(0, 0, W, cv.height);
+  let cardY = 0;
+  for(const c of cmds){
+    if(c[0] === 'card') cardY = c[2];
+    else if(c[0] === 'cardEnd'){ x.save(); x.shadowColor = 'rgba(0,0,0,.08)'; x.shadowBlur = 30; x.shadowOffsetY = 8; rr(x, P, cardY, W - 2*P, c[1] - cardY, 48, C.card); x.restore(); }
+  }
+  for(const c of cmds){
+    const k = c[0];
+    if(k === 't'){ x.font = c[2]; x.fillStyle = c[3]; x.textAlign = c[6] || 'left'; x.fillText(c[1], c[4], c[5]); }
+    else if(k === 'box') rr(x, c[1], c[2], c[3], c[4], 28, C.bg);
+    else if(k === 'bar'){ rr(x, c[1], c[2], c[3], c[4], 8, '#ECEAE4'); if(c[5] > 0) rr(x, c[1], c[2], Math.max(16, c[3]*c[5]), c[4], 8, C.accent); }
+    else if(k === 'line'){ x.fillStyle = '#ECEAE4'; x.fillRect(c[1], c[2], c[3], 2); }
+    else if(k === 'chip'){ rr(x, c[2], c[3], c[4], c[5], 26, c[6]); x.font = F(700, 28); x.fillStyle = c[7]; x.textAlign = 'center'; x.fillText(c[1], c[2] + c[4]/2, c[3] + 36); }
+  }
+  return cv;
+}
+function shareWords(){ return (ui.share ? ui.share.ids : []).map(id => db.words.find(w => w.id === id)).filter(Boolean); }
+function openShare(ids){
+  ui.share = { ids, status: false }; ui.modal = 'share';
+  renderShare();
+}
+function renderShare(){
+  const ws = shareWords(); if(!ws.length){ closeModal(); return; }
+  const url = drawShareImage(ws, ui.share.status).toDataURL('image/png');
+  ui.share.png = url;
+  openModal(`<div class="row between"><h2>${ws.length === 1 ? `„${esc(ws[0].en)}“ teilen` : `${ws.length} Vokabeln teilen`}</h2>
+      <button class="link" style="color:var(--muted);display:flex;align-items:center" data-act="modalClose" aria-label="Schließen">${ico('x',22)}</button></div>
+    <img class="shareimg" src="${url}" alt="Vorschau des Bildes zum Teilen">
+    ${ws.length > IMG_MAX ? `<p class="small muted">Das Bild zeigt die ersten ${IMG_MAX} Wörter, der Text enthält alle ${ws.length}.</p>` : ''}
+    <div class="setrow" style="padding:4px 0"><div><p style="font-weight:600">Mein Lernstand im Bild</p><p class="small muted">Nur im Bild, nicht im Text</p></div>
+      <button class="switch" aria-label="Mein Lernstand im Bild" aria-pressed="${ui.share.status}" data-act="shareStatus"><span></span></button></div>
+    <button class="btn full" style="height:52px;border-radius:26px" data-act="shareTextGo">${ico('share',18,'style="vertical-align:-4px;margin-right:6px"')}Als Text teilen</button>
+    <button class="btn line full" data-act="shareImgGo">Als Bild teilen</button>
+    <button class="link" style="align-self:center" data-act="shareCopy">Liste kopieren</button>`);
+}
+async function shareAsText(){
+  const t = shareText(shareWords());
+  try{
+    if(SHARE){ await SHARE.share({ text:t, dialogTitle:'Vokabeln teilen' }); return; }
+    if(navigator.share){ await navigator.share({ text:t }); return; }
+    await copyText(t); toast('Liste kopiert');
+  }catch(e){ if(e && e.name !== 'AbortError' && !/cancel/i.test(String(e.message||e))) toast('Teilen hat nicht geklappt'); }
+}
+async function shareAsImage(){
+  const ws = shareWords(), t = shareText(ws), url = ui.share.png, b64 = url.split(',')[1];
+  const name = `vokabeln-${Date.now()}.png`;
+  try{
+    if(SHARE && FS){
+      const f = await FS.writeFile({ path:name, data:b64, directory:'CACHE' });
+      await SHARE.share({ files:[f.uri], text:t, dialogTitle:'Vokabeln teilen' }); return;
+    }
+    const blob = await (await fetch(url)).blob(), file = new File([blob], name, { type:'image/png' });
+    if(navigator.canShare && navigator.canShare({ files:[file] })){ await navigator.share({ files:[file], text:t }); return; }
+    const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    toast('Bild gespeichert');
+  }catch(e){ if(e && e.name !== 'AbortError' && !/cancel/i.test(String(e.message||e))) toast('Teilen hat nicht geklappt'); }
+}
+
+/* ============ Mehrfachauswahl in der Vokabelliste ============ */
+function startSel(id){
+  ui.sel = [id]; ui.selDelArm = false;
+  history.pushState({ screen:'words', sel:true }, '');
+  try{ navigator.vibrate && navigator.vibrate(15); }catch(_){}
+  render();
+}
+function endSel(){ if(history.state && history.state.sel) history.back(); else { ui.sel = null; render(); } }
+function renderSelbar(){
+  const bar = document.getElementById('selbar'), on = ui.screen === 'words' && ui.sel;
+  bar.hidden = !on; if(!on) return;
+  const n = ui.sel.length, dis = n ? '' : 'disabled';
+  document.getElementById('selbarIn').innerHTML = `
+    <button data-act="selShare" ${dis}>${ico('share',22)}Teilen</button>
+    <button data-act="selCards" ${dis}>${ico('cards',22)}Üben</button>
+    <button data-act="selTest" ${dis}>${ico('bolt',22)}Test</button>
+    <button data-act="selDelete" class="${ui.selDelArm ? 'arm' : ''}" ${dis}>${ico('trash',22)}${ui.selDelArm ? 'Sicher?' : 'Löschen'}</button>`;
+}
+let lpTimer = null, lpXY = null;
+document.addEventListener('pointerdown', e => {
+  ui.lpFired = false;   // neue Berührung: ein evtl. verschluckter Klick vom langen Drücken zählt nicht mehr
+  const row = e.target.closest('[data-lp]'); if(!row || ui.sel) return;
+  lpXY = [e.clientX, e.clientY];
+  lpTimer = setTimeout(() => { lpTimer = null; ui.lpFired = true; startSel(row.dataset.id); }, 450);
+});
+document.addEventListener('pointermove', e => { if(lpTimer && lpXY && Math.hypot(e.clientX - lpXY[0], e.clientY - lpXY[1]) > 10){ clearTimeout(lpTimer); lpTimer = null; } });
+['pointerup','pointercancel'].forEach(t => document.addEventListener(t, () => { if(lpTimer){ clearTimeout(lpTimer); lpTimer = null; } }));
+document.addEventListener('contextmenu', e => { if(e.target.closest('[data-lp]')) e.preventDefault(); });
 
 /* ============ Start ============ */
 history.replaceState({screen:'home'}, '');
@@ -1345,8 +1613,9 @@ if(NATIVE){
   });
   if(APP){
     APP.addListener('backButton', ({canGoBack}) => {
-      if(document.getElementById('banner').classList.contains('show')) hideBanner();
-      else if(canGoBack && (ui.quiz || ui.cards || ui.screen !== 'home')) history.back();
+      if(!document.getElementById('modal').hidden) closeModal();
+      else if(document.getElementById('banner').classList.contains('show')) hideBanner();
+      else if(canGoBack && (ui.quiz || ui.cards || ui.sel || ui.screen !== 'home')) history.back();
       else if(ui.screen !== 'home') go('home');
       else APP.exitApp();
     });
