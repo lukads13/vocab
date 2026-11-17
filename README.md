@@ -4,6 +4,7 @@ Eine Android-App zum Lernen englischer Vokabeln. Über den Tag verteilt fragt si
 
 - **Wort hinzufügen:** Englisches Wort eingeben. Die App holt die deutsche Übersetzung (MyMemory) und den Wörterbuch-Eintrag (dictionaryapi.dev) mit Aussprache, Bedeutung, Beispielsatz samt Übersetzung und Synonymen. Vor dem Speichern lässt sich alles anpassen.
 - **Spontan-Tests:** Die App würfelt jeden Tag zufällige Zeitpunkte in deinem Zeitfenster (z. B. 4× zwischen 8 und 21 Uhr) und plant sie 7 Tage im Voraus als Benachrichtigungen ein. Das funktioniert auch, wenn die App geschlossen ist. Tippst du auf die Benachrichtigung, startet der Test: Englisch → Deutsch, Deutsch → Englisch oder Lückentext. Schwache Wörter kommen öfter dran.
+- **Tests & Lernsessions:** Im Reiter *Tests* startest du einen Spontan-Test sofort, übst gezielt „Meine Fehler“ oder stellst dir einen eigenen Test zusammen (Wortauswahl, Anzahl, Richtung; Abfrage per Auswahl, Eintippen mit Tippfehler-Toleranz oder Hörtest). Für entspanntes Üben gibt es Vokabelzettel zum Umdrehen und Wischen.
 - **Offline & privat:** Lernen und Tests gehen ohne Internet, nur das Nachschlagen braucht eine Verbindung. Alle Daten bleiben auf dem Handy, es gibt keinen Account und keine Cloud.
 
 ## APK installieren

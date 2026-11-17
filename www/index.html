@@ -22,7 +22,22 @@ body{background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"
 button,input,textarea,select{font:inherit;color:inherit}
 button{cursor:pointer}
 #app{max-width:480px;margin:0 auto;min-height:100%;display:flex;flex-direction:column;position:relative}
-main{flex:1;padding:calc(env(safe-area-inset-top) + 20px) 20px 110px}
+main{flex:1;padding:calc(env(safe-area-inset-top) + 20px) 20px 180px}
+.fab{position:fixed;z-index:6;right:max(16px, calc((100vw - 480px)/2 + 16px));bottom:calc(env(safe-area-inset-bottom) + 96px);width:60px;height:60px;border-radius:20px;border:none;background:var(--accent);color:#fff;box-shadow:0 8px 24px rgba(52,66,196,.35);display:flex;align-items:center;justify-content:center}
+.fab[hidden]{display:none}
+.choices{display:flex;flex-wrap:wrap;gap:8px}
+.choices button{height:38px;padding:0 14px;border-radius:19px;border:1px solid var(--line);background:#fff;font-weight:600;font-size:13px}
+.choices button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
+.tin{height:56px;border-radius:16px;border:1.5px solid var(--dark3);background:var(--dark2);color:#fff;font-size:18px;padding:0 16px;width:100%}
+.tin:focus{outline:2px solid var(--amber);outline-offset:1px}
+.listen{width:120px;height:120px;border-radius:60px;border:none;background:var(--amber);color:var(--ink);display:flex;align-items:center;justify-content:center;margin:8px auto}
+.zettel{position:relative;background:#fff;color:var(--ink);border-radius:28px;min-height:360px;padding:28px 22px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;box-shadow:0 12px 40px rgba(0,0,0,.35);touch-action:pan-y;user-select:none;-webkit-user-select:none;transition:transform .2s;cursor:grab}
+.zettel.drag{transition:none}
+.zettel .stamp{position:absolute;top:18px;padding:6px 12px;border-radius:10px;font-weight:800;font-size:14px;letter-spacing:.5px;text-transform:uppercase;opacity:0;border:2px solid}
+.zettel .stamp.ok{right:18px;color:#1D5E38;border-color:#1D5E38;transform:rotate(8deg)}
+.zettel .stamp.no{left:18px;color:#A3271A;border-color:#A3271A;transform:rotate(-8deg)}
+.pbar{height:6px;border-radius:3px;background:var(--dark3);overflow:hidden}
+.pbar i{display:block;height:100%;background:var(--amber)}
 h1{margin:0;font-size:28px;font-weight:700;letter-spacing:-.5px}
 h2{margin:0;font-size:18px;font-weight:650}
 p{margin:0}
@@ -126,6 +141,7 @@ nav.tabs button[aria-current="page"] span{background:var(--accent-soft)}
 </div>
 
 <nav class="tabs" aria-label="Hauptnavigation"><div class="in" id="tabs"></div></nav>
+<button id="fab" class="fab" data-act="go" data-to="add" aria-label="Vokabel hinzufügen" hidden><svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
 
 <div id="banner" role="alertdialog" aria-label="Spontan-Test"></div>
 <div id="overlay"></div>
@@ -294,6 +310,7 @@ function go(screen, opts={}){
 }
 window.addEventListener('popstate', e => {
   if(ui.quiz){ closeQuiz(); return; }
+  if(ui.cards){ closeCards(); return; }
   if(document.getElementById('banner').classList.contains('show')){ hideBanner(); return; }
   const st = e.state || {screen:'home'}; Object.assign(ui, {screen:st.screen, detail:st.detail||null, delArm:false, editDe:false}); render();
 });
@@ -303,9 +320,10 @@ function render(){
   const v = VIEWS[ui.screen] || VIEWS.home;
   document.getElementById('main').innerHTML = v();
   renderTabs();
+  document.getElementById('fab').hidden = !(ui.screen === 'home' || ui.screen === 'words');
 }
 function renderTabs(){
-  const t = [['home','Start','home',['home']],['words','Vokabeln','list',['words','detail']],['add','Hinzufügen','plus',['add']],['settings','Einstellungen','gear',['settings']]];
+  const t = [['home','Start','home',['home']],['words','Vokabeln','list',['words','detail']],['tests','Tests','bolt',['tests']],['settings','Einstellungen','gear',['settings']]];
   document.getElementById('tabs').innerHTML = t.map(([s,l,i,act]) =>
     `<button data-act="go" data-to="${s}" ${act.includes(ui.screen)?'aria-current="page"':''}><span>${ico(i)}</span>${l}</button>`).join('');
 }
@@ -406,6 +424,7 @@ add(){
     <button data-act="addMode" data-m="single" aria-pressed="${mode === 'single'}">Einzelnes Wort</button>
     <button data-act="addMode" data-m="list" aria-pressed="${mode === 'list'}">Liste${Q.length ? ` (${Q.length})` : ''}</button></div>`;
   if(mode === 'list') return `<div class="stack" style="gap:14px">
+  <button class="back" data-act="back">${ico('back')} Zurück</button>
   <div><h1>Wörter hinzufügen</h1><p class="muted" style="margin-top:6px;line-height:1.45;font-size:14px">Liste einfügen – pro Wort kommt ein Vorschlag, den du übernehmen oder anpassen kannst.</p></div>
   ${tabs}
   ${langSeg}
@@ -421,6 +440,7 @@ add(){
   <div class="stack" style="gap:10px">${Q.map(queueCard).join('')}</div>` : ''}
   </div>`;
   return `<div class="stack" style="gap:14px">
+  <button class="back" data-act="back">${ico('back')} Zurück</button>
   <div><h1>Wort hinzufügen</h1><p class="muted" style="margin-top:6px;line-height:1.45;font-size:14px">${de ? 'Deutsches Wort eingeben – die App schlägt das englische Wort vor, samt Wörterbuch-Kontext.' : 'Englisches Wort eingeben – Übersetzung und Wörterbuch-Kontext kommen automatisch.'} Du kannst alles vor dem Speichern anpassen.</p></div>
   ${tabs}
   ${langSeg}
@@ -453,6 +473,39 @@ detail(){
     </div>
   </div>
   <button class="btn danger full" data-act="del">${ui.delArm ? 'Wirklich löschen? Nochmal tippen' : 'Wort löschen'}</button>
+  </div>`;
+},
+
+tests(){
+  const c = custom(), n = nextTest(), ms = mistakeWords();
+  const count = selectWords(c.sel, c.n).length;
+  const seg = (k, opts, cols) => `<div class="seg" style="grid-template-columns:repeat(${cols || opts.length},minmax(0,1fr))">${opts.map(([v,l]) => `<button data-act="cset" data-k="${k}" data-v="${v}" aria-pressed="${String(c[k]) === String(v)}">${l}</button>`).join('')}</div>`;
+  let when = 'Für heute sind alle Spontan-Tests durch.';
+  if(n){ const h = new Date(n).getHours(); when = `Der nächste kommt überraschend – zwischen ${h} und ${h+1} Uhr.`; }
+  if(!db.words.length) return `<div class="stack"><h1>Tests</h1><div class="card stack" style="gap:12px"><h2>Noch keine Vokabeln</h2><p class="muted" style="line-height:1.5">Füge zuerst ein paar Wörter hinzu, dann kannst du hier üben.</p><button class="btn full" data-act="go" data-to="add">Wort hinzufügen</button></div></div>`;
+  return `<div class="stack">
+  <h1>Tests</h1>
+  <div class="hero">
+    <div class="row"><div class="bolt">${ico('bolt',18,'stroke-width="2"')}</div><p class="small" style="font-weight:600;letter-spacing:.4px;text-transform:uppercase">Spontan-Test</p></div>
+    <p style="font-size:16px;line-height:1.4">${when}</p>
+    <button class="btn white full" data-act="quiz">Jetzt starten</button>
+  </div>
+  <div class="card row between" style="gap:12px">
+    <div><h2>Meine Fehler</h2><p class="small muted" style="margin-top:2px;line-height:1.4">${ms.length ? `${ms.length} ${ms.length === 1 ? 'Wort' : 'Wörter'}, die du zuletzt falsch hattest` : 'Gerade keine – sehr gut!'}</p></div>
+    <button class="btn" data-act="mistakes" ${ms.length ? '' : 'disabled'}>Üben</button>
+  </div>
+  <div class="card stack" style="gap:18px">
+    <h2>Selbst üben</h2>
+    ${seg('kind', [['test','Test'],['cards','Vokabelzettel']])}
+    <div class="stack" style="gap:10px"><p style="font-weight:600;font-size:14px">Welche Wörter?</p>
+      <div class="choices">${SEL.map(([v,l]) => `<button data-act="cset" data-k="sel" data-v="${v}" aria-pressed="${c.sel === v}">${l}</button>`).join('')}</div></div>
+    <div class="stack" style="gap:10px"><p style="font-weight:600;font-size:14px">Wie viele?</p>${seg('n', [[5,'5'],[10,'10'],[20,'20'],[0,'Alle']])}</div>
+    ${c.kind === 'test' ? `
+    <div class="stack" style="gap:10px"><p style="font-weight:600;font-size:14px">Richtung</p>${seg('dir', [['en','EN → DE'],['de','DE → EN'],['mix','Gemischt']])}</div>
+    <div class="stack" style="gap:10px"><p style="font-weight:600;font-size:14px">Abfrage</p>${seg('mode', [['choice','Auswahl'],['type','Eintippen'],['listen','Hören'],['mix','Gemischt']], 2)}</div>`
+    : `<div class="stack" style="gap:10px"><p style="font-weight:600;font-size:14px">Vorderseite</p>${seg('front', [['en','Englisch'],['de','Deutsch']])}</div>`}
+    <button class="btn full" style="height:52px;border-radius:26px" data-act="customStart" ${count ? '' : 'disabled'}>${c.kind === 'test' ? 'Test starten' : 'Lernsession starten'} · ${count} ${count === 1 ? 'Wort' : 'Wörter'}</button>
+  </div>
   </div>`;
 },
 
@@ -758,11 +811,15 @@ function acceptQueued(q){
   db.queue = db.queue.filter(x => x.id !== q.id);
   return true;
 }
+const TTS = PLUG('TextToSpeech');
+function canSpeak(w){ return !!TTS || ('speechSynthesis' in window) || !!(w && w.audio); }
 function speak(w, audio){
-  if(audio){ const a = new Audio(audio); a.play().catch(() => tts(w)); return; }
-  tts(w);
+  if(audio && !TTS){ const a = new Audio(audio); a.play().catch(() => tts(w)); return; }
+  tts(w, audio);
 }
-function tts(w){
+function tts(w, audio){
+  const text = String(w).replace(/^to\s+/i,'');
+  if(TTS){ TTS.speak({ text, lang:'en-GB', rate:0.9 }).catch(() => { if(audio) new Audio(audio).play().catch(() => {}); else toast('Sprachausgabe nicht verfügbar'); }); return; }
   if(!('speechSynthesis' in window)){ toast('Sprachausgabe nicht verfügbar'); return; }
   const u = new SpeechSynthesisUtterance(String(w).replace(/^to\s+/i,'')); u.lang = 'en-GB'; u.rate = .9;
   speechSynthesis.cancel(); speechSynthesis.speak(u);
@@ -775,39 +832,84 @@ function pickWords(n){
   return db.words.map(w => ({w, s:(6-w.box)*2 + Math.min((now-(w.lastTested||0))/36e5, 48)/12 + Math.random()*2.5}))
     .sort((a,b) => b.s - a.s).slice(0,n).map(x => x.w);
 }
-function makeQuestion(w){
+function makeQuestion(w, dir, mode){
+  dir = dir || db.settings.dir; mode = mode || 'choice';
   const others = db.words.filter(o => o.id !== w.id && o.de.length);
   const base = norm(w.en).split(' ')[0];
   const re = base.length > 2 ? new RegExp(`\\b(${base.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}\\w*)\\b`, 'i') : null;
   const canCloze = w.ex && re && re.test(w.ex);
-  let kinds = db.settings.dir === 'en' ? ['en'] : db.settings.dir === 'de' ? ['de'] : ['en','de'].concat(canCloze ? ['cloze'] : []);
   const explain = `${w.en} = ${w.de.join(', ')}${w.ex ? ` · „${w.ex}“` : ''}`;
+  let m = mode;
+  if(m === 'mix') m = shuffle(['choice','choice','type'].concat(canSpeak(w) ? ['listen'] : []))[0];
+  if(m === 'listen' && !canSpeak(w)) m = 'choice';
+  if(m === 'type' && w.de.length){
+    const toDe = dir === 'en' || (dir === 'mix' && Math.random() < .5);
+    return toDe ? {w, kind:'typeDe', label:'Eintippen · EN → DE', prompt:w.en, sub:'Schreib die deutsche Bedeutung.', accept:w.de, lang:'de', explain}
+                : {w, kind:'typeEn', label:'Eintippen · DE → EN', prompt:w.de[0], sub:'Schreib das englische Wort.', accept:[w.en], lang:'en', explain};
+  }
   if(others.length < 3 || !w.de.length) return {w, kind:'flip', label: 'Karteikarte', prompt:w.en, sub:'Weißt du, was es bedeutet?', answer:w.de.join(', ') || w.def, explain};
-  const kind = kinds[Math.floor(Math.random()*kinds.length)];
   const pickOthers = (f) => { const seen = new Set([f(w).toLowerCase()]); const out = []; for(const o of shuffle([...others])){ const v = f(o); if(v && !seen.has(v.toLowerCase())){ seen.add(v.toLowerCase()); out.push(v); } if(out.length === 3) break; } return out; };
+  if(m === 'listen'){ const c = w.de[0]; return {w, kind:'listen', label:'Hörtest', prompt:w.en, sub:'Was bedeutet das Wort, das du hörst?', options:shuffle([c, ...pickOthers(o => o.de[0])]), correct:c, explain}; }
+  const kinds = dir === 'en' ? ['en'] : dir === 'de' ? ['de'] : ['en','de'].concat(canCloze ? ['cloze'] : []);
+  const kind = kinds[Math.floor(Math.random()*kinds.length)];
   if(kind === 'en'){ const c = w.de[0]; return {w, kind, label:'EN → DE', prompt:w.en, sub:'Was bedeutet das Wort?', options:shuffle([c, ...pickOthers(o => o.de[0])]), correct:c, explain}; }
   if(kind === 'de'){ const c = w.en; return {w, kind, label:'DE → EN', prompt:w.de[0], sub:'Wie sagt man das auf Englisch?', options:shuffle([c, ...pickOthers(o => o.en)]), correct:c, explain}; }
   const c = w.en; const blank = w.ex.replace(re, '_____');
   return {w, kind, label:'Lückentext', prompt:blank, long:true, sub:`Welches Wort passt? (Tipp: ${w.de[0]})`, options:shuffle([c, ...pickOthers(o => o.en)]), correct:c, explain};
 }
-function startQuiz(){
+/* Eingetippte Antwort prüfen – kleine Tippfehler sind ok */
+function normAns(s, lang){
+  s = String(s||'').toLowerCase().trim().replace(/[.,!?;:"'„“”()\[\]]/g,'').replace(/\s+/g,' ');
+  s = s.replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue').replace(/ß/g,'ss');
+  s = lang === 'en' ? s.replace(/^(to|the|a|an) /,'') : s.replace(/^(der|die|das|ein|eine|einen|sich) /,'');
+  return s.trim();
+}
+function lev(a, b){
+  const m = a.length, n = b.length; if(!m) return n; if(!n) return m;
+  let prev = Array.from({length:n+1}, (_,j) => j);
+  for(let i=1;i<=m;i++){ const cur = [i]; for(let j=1;j<=n;j++) cur[j] = Math.min(prev[j]+1, cur[j-1]+1, prev[j-1] + (a[i-1] === b[j-1] ? 0 : 1)); prev = cur; }
+  return prev[n];
+}
+function checkTyped(input, accept, lang){
+  const x = normAns(input, lang); if(!x) return {ok:false};
+  let near = null;
+  for(const a of accept){
+    const y = normAns(a, lang); if(!y) continue;
+    if(x === y) return {ok:true, exact:true};
+    const tol = y.length >= 8 ? 2 : y.length >= 4 ? 1 : 0;
+    if(lev(x, y) <= tol) near = {ok:true, exact:false, meant:a};
+  }
+  return near || {ok:false};
+}
+function startQuiz(opts){
+  opts = opts || {};
   hideBanner();
   if(!db.words.length){ toast('Füge zuerst ein paar Wörter hinzu'); return; }
-  const qs = pickWords(Math.min(db.settings.perTest, db.words.length)).map(makeQuestion);
-  ui.quiz = { qs, i:0, picked:null, revealed:false, results:[], done:false };
+  const spontan = !opts.words;
+  const words = spontan ? pickWords(Math.min(db.settings.perTest, db.words.length)) : opts.words;
+  if(!words.length){ toast('Keine passenden Wörter gefunden'); return; }
+  const qs = words.map(w => makeQuestion(w, opts.dir || db.settings.dir, opts.mode || 'choice'));
+  const already = !!ui.quiz;
+  ui.quiz = { qs, i:0, picked:null, typed:null, revealed:false, results:[], done:false, spoken:-1, title: opts.title || 'Spontan-Test', spontan, opts };
   document.getElementById('toast').classList.remove('show');
-  history.pushState({quiz:true}, '');
+  if(!already) history.pushState({quiz:true}, '');
   renderQuiz();
 }
 function closeQuiz(){ ui.quiz = null; document.getElementById('overlay').innerHTML = ''; document.body.style.overflow = ''; render(); }
 function answer(ok){
   const Q = ui.quiz, q = Q.qs[Q.i], w = db.words.find(x => x.id === q.w.id);
-  if(w){ w.tested++; w.lastTested = Date.now(); if(ok){ w.right++; w.box = Math.min(5, w.box+1); } else { w.wrong++; w.box = Math.max(0, w.box-2); } }
+  if(w){
+    w.tested++; w.lastTested = Date.now();
+    if(ok){ w.right++; w.box = Math.min(5, w.box+1); } else { w.wrong++; w.box = Math.max(0, w.box-2); }
+    // „Meine Fehler“: falsch → auf die Liste, richtig → runter
+    const ms = (db.mistakes||[]).filter(id => id !== w.id);
+    db.mistakes = ok ? ms : [w.id, ...ms].slice(0, 60);
+  }
   Q.results[Q.i] = ok; save();
 }
 function nextQ(){
   const Q = ui.quiz;
-  if(Q.i < Q.qs.length - 1){ Q.i++; Q.picked = null; Q.revealed = false; }
+  if(Q.i < Q.qs.length - 1){ Q.i++; Q.picked = null; Q.typed = null; Q.revealed = false; }
   else { Q.done = true; finishStats(); }
   renderQuiz();
 }
@@ -815,6 +917,10 @@ function finishStats(){
   const t = dayKey(), s = db.stats;
   if(s.today.date !== t) s.today = {date:t, count:0};
   s.today.count++;
+  touchStreak();
+}
+function touchStreak(){
+  const t = dayKey(), s = db.stats;
   if(s.lastDay !== t){ const y = new Date(); y.setDate(y.getDate()-1); s.streak = s.lastDay === dayKey(y) ? (s.streak||0)+1 : 1; s.lastDay = t; }
   save();
 }
@@ -827,18 +933,35 @@ function renderQuiz(){
     el.innerHTML = `<div class="overlay"><div class="in" style="padding-top:calc(env(safe-area-inset-top) + 48px)">
       <div class="ring">${score}/${n}</div>
       <div style="text-align:center"><h1 style="font-size:30px">${score === n ? 'Perfekt!' : score >= n/2 ? 'Stark!' : 'Dranbleiben!'}</h1>
-      <p style="color:var(--dark-muted);margin-top:6px">Serie: ${db.stats.streak} ${db.stats.streak === 1 ? 'Tag' : 'Tage'}${nx ? ` · nächster Test ca. ${new Date(nx).getHours()} Uhr` : ''}</p></div>
+      <p style="color:var(--dark-muted);margin-top:6px">${esc(Q.title)} · Serie: ${db.stats.streak} ${db.stats.streak === 1 ? 'Tag' : 'Tage'}${Q.spontan && nx ? ` · nächster Test ca. ${new Date(nx).getHours()} Uhr` : ''}</p></div>
       <div style="background:var(--dark2);border-radius:22px;padding:4px 16px">${Q.qs.map((q,i) => `<div class="resrow"><div><p style="font-weight:600">${esc(q.w.en)}</p><p class="small" style="color:var(--dark-muted)">${esc(q.w.de.join(', '))}</p></div><span class="small" style="font-weight:700;color:${Q.results[i]?'var(--good)':'var(--bad)'}">${Q.results[i]?'Richtig':'Wiederholen'}</span></div>`).join('')}</div>
-      <p class="small" style="color:var(--dark-muted);text-align:center;line-height:1.5">Falsche Wörter kommen in den nächsten Tests öfter dran.</p>
+      <p class="small" style="color:var(--dark-muted);text-align:center;line-height:1.5">Falsche Wörter kommen in den nächsten Tests öfter dran und stehen unter Tests → „Meine Fehler“.</p>
       <div style="flex:1"></div>
+      ${score < n ? `<button class="btn full" style="height:52px;border-radius:26px;background:transparent;border:1.5px solid var(--amber);color:var(--amber)" data-act="retryWrong">Falsche nochmal üben (${n - score})</button>` : ''}
       <button class="btn amber full" style="height:54px;border-radius:27px" data-act="quizClose">Fertig</button>
     </div></div>`;
     return;
   }
-  const q = Q.qs[Q.i], answered = q.kind === 'flip' ? Q.results[Q.i] !== undefined : Q.picked !== null;
+  const q = Q.qs[Q.i], isType = q.kind === 'typeDe' || q.kind === 'typeEn';
+  const answered = q.kind === 'flip' ? Q.results[Q.i] !== undefined : isType ? Q.typed !== null : Q.picked !== null;
+  const nextBtn = `<button class="btn amber full" style="height:52px;border-radius:26px" data-act="next">${Q.i < Q.qs.length-1 ? 'Weiter' : 'Ergebnis ansehen'}</button>`;
   const dots = Q.qs.map((_,i) => `<i class="${i<Q.i?'done':i===Q.i?'cur':''}"></i>`).join('');
   let body = '';
-  if(q.kind === 'flip'){
+  if(isType){
+    const T = Q.typed;
+    body = answered ? `<div style="flex:1"></div><div class="fb">
+        <p style="font-size:18px;font-weight:700;color:${T.res.ok?'var(--good)':'var(--bad)'}">${T.res.ok ? (T.res.exact ? 'Richtig!' : 'Fast richtig – kleiner Tippfehler') : 'Nicht ganz.'}</p>
+        ${T.value ? `<p class="small" style="color:#DADAE0">Deine Antwort: <b style="${T.res.ok ? '' : 'text-decoration:line-through'}">${esc(T.value)}</b></p>` : ''}
+        <p style="font-size:17px;font-weight:600">${esc(q.accept.join(', '))}</p>
+        <p class="small" style="color:#DADAE0;line-height:1.5">${esc(q.explain)}</p>
+        ${nextBtn}</div>`
+      : `<form id="typeForm" class="stack" style="gap:10px">
+        <label class="sr" for="typeIn">Deine Antwort</label>
+        <input id="typeIn" class="tin" autocomplete="off" autocapitalize="none" spellcheck="false" enterkeyhint="done" placeholder="${q.lang === 'de' ? 'auf Deutsch …' : 'auf Englisch …'}">
+        <button class="btn amber full" type="submit" style="height:52px;border-radius:26px">Prüfen</button>
+        <button class="btn full" type="button" style="height:48px;background:transparent;border:1px solid #44444C" data-act="typeSkip">Weiß ich nicht</button>
+      </form><div style="flex:1"></div>`;
+  } else if(q.kind === 'flip'){
     body = Q.revealed ? `<div class="fb"><p class="label" style="color:var(--dark-muted)">Bedeutung</p><p style="font-size:22px;font-weight:700">${esc(q.answer)}</p>${q.w.ex?`<p class="small" style="color:#DADAE0;line-height:1.5">„${esc(q.w.ex)}“</p>`:''}</div>
       ${answered ? `<button class="btn amber full" style="height:52px;border-radius:26px" data-act="next">${Q.i < Q.qs.length-1 ? 'Weiter' : 'Ergebnis ansehen'}</button>`
       : `<div class="row" style="gap:10px"><button class="btn full" style="background:#1E4A31;border:1.5px solid var(--good);height:52px" data-act="flip" data-ok="1">Gewusst</button><button class="btn full" style="background:#57211C;border:1.5px solid var(--bad);height:52px" data-act="flip" data-ok="0">Nicht gewusst</button></div>`}`
@@ -856,16 +979,138 @@ function renderQuiz(){
         <button class="btn amber full" style="height:52px;border-radius:26px" data-act="next">${Q.i < Q.qs.length-1 ? 'Weiter' : 'Ergebnis ansehen'}</button></div>` : ''}`;
   }
   el.innerHTML = `<div class="overlay"><div class="in">
-    <div class="row between"><div class="row"><div class="bolt">${ico('bolt',18,'stroke-width="2"')}</div><p style="font-weight:600;font-size:14px">Spontan-Test</p></div>
-      <button class="btn" style="height:44px;background:transparent;border:1px solid #44444C;font-size:14px" data-act="quizClose">Später</button></div>
+    <div class="row between"><div class="row"><div class="bolt">${ico('bolt',18,'stroke-width="2"')}</div><p style="font-weight:600;font-size:14px">${esc(Q.title)}</p></div>
+      <button class="btn" style="height:44px;background:transparent;border:1px solid #44444C;font-size:14px" data-act="quizClose">${Q.spontan ? 'Später' : 'Beenden'}</button></div>
     <div class="dots">${dots}</div>
     <div class="stack" style="gap:10px;padding-top:12px">
       <div class="row"><span class="qkind">${q.label}</span><span class="small" style="color:var(--dark-muted)">Frage ${Q.i+1} von ${Q.qs.length}</span></div>
-      <h2 class="qprompt ${q.long?'long':''}">${esc(q.prompt)}</h2>
+      ${q.kind === 'listen'
+        ? (answered ? `<h2 class="qprompt">${esc(q.prompt)}</h2>` : `<button class="listen" data-act="speak" data-w="${esc(q.w.en)}" data-audio="${esc(q.w.audio||'')}" aria-label="Wort anhören">${ico('speaker',52,'stroke-width="2"')}</button>`)
+        : `<h2 class="qprompt ${q.long?'long':''}">${esc(q.prompt)}</h2>`}
       <p style="color:var(--dark-muted);font-size:15px">${esc(q.sub)}</p>
     </div>
     ${body}
   </div></div>`;
+  if(isType && !answered) setTimeout(() => { const i = document.getElementById('typeIn'); if(i) i.focus(); }, 60);
+  if(q.kind === 'listen' && !answered && Q.spoken !== Q.i){ Q.spoken = Q.i; setTimeout(() => speak(q.w.en, q.w.audio), 250); }
+}
+
+/* ============ Wortauswahl für eigene Tests / Lernsessions ============ */
+const SEL = [['all','Alle'],['new','Neu'],['learn','Lernend'],['sure','Sicher'],['weak','Schwächste'],['recent','Zuletzt hinzugefügt']];
+function custom(){ db.settings.custom = { kind:'test', sel:'all', n:10, dir:'mix', mode:'choice', front:'en', ...(db.settings.custom||{}) }; return db.settings.custom; }
+function selectWords(sel, n){
+  let ws = [...db.words];
+  if(sel === 'new') ws = shuffle(ws.filter(w => !w.tested));
+  else if(sel === 'learn') ws = shuffle(ws.filter(w => w.tested && w.box < 4));
+  else if(sel === 'sure') ws = shuffle(ws.filter(w => w.tested && w.box >= 4));
+  else if(sel === 'weak') ws = ws.sort((a,b) => a.box - b.box || (b.wrong - b.right) - (a.wrong - a.right) || Math.random() - .5);
+  else if(sel === 'recent') ws = ws.sort((a,b) => b.created - a.created);
+  else ws = shuffle(ws);
+  ws = n ? ws.slice(0, n) : ws;
+  return (sel === 'weak' || sel === 'recent') ? shuffle(ws) : ws;
+}
+function mistakeWords(){ return (db.mistakes||[]).map(id => db.words.find(w => w.id === id)).filter(Boolean); }
+
+/* ============ Lernsession mit Vokabelzetteln ============ */
+function startCards(words, front){
+  if(!words.length){ toast('Keine passenden Wörter gefunden'); return; }
+  const already = !!ui.cards;
+  document.getElementById('toast').classList.remove('show');
+  ui.cards = { words: words.map(w => w.id), queue: shuffle(words.map(w => w.id)), flipped:false, tries:{}, firstOk:{}, done:false, front: front || 'en' };
+  if(!already) history.pushState({cards:true}, '');
+  renderCards();
+}
+function closeCards(){ ui.cards = null; document.getElementById('overlay').innerHTML = ''; document.body.style.overflow = ''; render(); }
+function cardAnswer(ok){
+  const C = ui.cards; if(!C || C.done) return;
+  const id = C.queue.shift(); if(!id) return;
+  C.tries[id] = (C.tries[id]||0) + 1;
+  if(ok){
+    if(C.tries[id] === 1){
+      C.firstOk[id] = true;
+      const w = db.words.find(x => x.id === id);
+      if(w && w.box < 3){ w.box++; save(); }   // Zettel zählen nur leicht: höchstens bis „Lernend“ 3/5
+    }
+  } else C.queue.splice(Math.min(C.queue.length, 3), 0, id);   // kommt in ein paar Karten wieder
+  C.flipped = false;
+  if(!C.queue.length){ C.done = true; touchStreak(); save(); }
+  renderCards();
+}
+function renderCards(){
+  const C = ui.cards, el = document.getElementById('overlay'); if(!C) return;
+  document.body.style.overflow = 'hidden';
+  const total = C.words.length, learned = total - C.queue.length;
+  if(C.done){
+    const first = Object.keys(C.firstOk).length;
+    const rows = C.words.map(id => db.words.find(w => w.id === id)).filter(Boolean).sort((a,b) => (C.tries[b.id]||0) - (C.tries[a.id]||0));
+    el.innerHTML = `<div class="overlay"><div class="in" style="padding-top:calc(env(safe-area-inset-top) + 48px)">
+      <div class="ring">${first}/${total}</div>
+      <div style="text-align:center"><h1 style="font-size:30px">${first === total ? 'Alles gewusst!' : 'Session geschafft!'}</h1>
+      <p style="color:var(--dark-muted);margin-top:6px;line-height:1.5">${first} von ${total} Zetteln beim ersten Mal gewusst</p></div>
+      <div style="background:var(--dark2);border-radius:22px;padding:4px 16px">${rows.map(w => `<div class="resrow"><div><p style="font-weight:600">${esc(w.en)}</p><p class="small" style="color:var(--dark-muted)">${esc(w.de.join(', '))}</p></div><span class="small" style="font-weight:700;color:${C.tries[w.id] > 1 ? 'var(--amber)' : 'var(--good)'}">${C.tries[w.id] > 1 ? C.tries[w.id] + '× gesehen' : 'sofort'}</span></div>`).join('')}</div>
+      <div style="flex:1"></div>
+      <button class="btn full" style="height:52px;border-radius:26px;background:transparent;border:1.5px solid var(--amber);color:var(--amber)" data-act="cardsAgain">Nochmal alle</button>
+      <button class="btn amber full" style="height:54px;border-radius:27px" data-act="cardsClose">Fertig</button>
+    </div></div>`;
+    return;
+  }
+  const w = db.words.find(x => x.id === C.queue[0]);
+  if(!w){ C.queue.shift(); return renderCards(); }
+  const frontEn = C.front !== 'de';
+  const front = frontEn ? w.en : w.de.join(', '), back = frontEn ? w.de.join(', ') : w.en;
+  el.innerHTML = `<div class="overlay"><div class="in">
+    <div class="row between"><div class="row"><div class="bolt">${ico('list',18,'stroke-width="2"')}</div><p style="font-weight:600;font-size:14px">Lernsession</p></div>
+      <button class="btn" style="height:44px;background:transparent;border:1px solid #44444C;font-size:14px" data-act="cardsClose">Beenden</button></div>
+    <div class="stack" style="gap:8px"><div class="pbar"><i style="width:${Math.round(learned/total*100)}%"></i></div>
+      <p class="small" style="color:var(--dark-muted)">${learned} von ${total} gelernt${C.tries[w.id] ? ` · diesen Zettel ${C.tries[w.id]}× gesehen` : ''}</p></div>
+    <div id="zettel" class="zettel" role="button" tabindex="0" aria-label="${C.flipped ? 'Zettel-Rückseite' : 'Zettel umdrehen'}">
+      <span class="stamp ok" aria-hidden="true">Gewusst</span><span class="stamp no" aria-hidden="true">Nochmal</span>
+      ${C.flipped ? `
+        <p class="small muted">${esc(front)}</p>
+        <p style="font-size:30px;font-weight:700;line-height:1.2;letter-spacing:-.4px">${esc(back)}</p>
+        ${frontEn ? '' : (w.ipa ? `<p class="muted">${esc(w.ipa)}</p>` : '')}
+        ${w.ex ? `<div class="ctx" style="text-align:left;width:100%;margin-top:6px"><p class="small" style="font-weight:500;line-height:1.45">${esc(w.ex)}</p>${w.exDe ? `<p class="small muted" style="font-style:italic;line-height:1.45">${esc(w.exDe)}</p>` : ''}</div>` : ''}`
+      : `
+        <p style="font-size:36px;font-weight:700;line-height:1.15;letter-spacing:-.5px">${esc(front)}</p>
+        ${frontEn && w.ipa ? `<p class="muted">${esc(w.ipa)}</p>` : ''}
+        <p class="small muted" style="margin-top:10px">Tippen zum Umdrehen</p>`}
+      <button class="link" style="min-height:44px;display:flex;align-items:center;gap:6px" data-act="speak" data-w="${esc(w.en)}" data-audio="${esc(w.audio||'')}" aria-label="Englisch anhören">${ico('speaker',20)} anhören</button>
+    </div>
+    <div style="flex:1"></div>
+    ${C.flipped ? `<div class="row" style="gap:10px">
+        <button class="btn full" style="height:54px;background:#57211C;border:1.5px solid var(--bad)" data-act="cardNo">Nochmal</button>
+        <button class="btn full" style="height:54px;background:#1E4A31;border:1.5px solid var(--good)" data-act="cardOk">Gewusst</button></div>`
+      : `<button class="btn amber full" style="height:54px;border-radius:27px" data-act="cardFlip">Umdrehen</button>`}
+    <p class="small" style="color:var(--dark-muted);text-align:center">Wischen: nach rechts = gewusst, nach links = nochmal</p>
+  </div></div>`;
+  bindSwipe();
+}
+function bindSwipe(){
+  const el = document.getElementById('zettel'); if(!el) return;
+  const ok = el.querySelector('.stamp.ok'), no = el.querySelector('.stamp.no');
+  let x0 = null, y0 = 0, dx = 0, moved = false;
+  el.addEventListener('pointerdown', e => {
+    if(e.target.closest('button')) return;
+    x0 = e.clientX; y0 = e.clientY; dx = 0; moved = false; el.classList.add('drag');
+    try{ el.setPointerCapture(e.pointerId); }catch(_){}
+  });
+  el.addEventListener('pointermove', e => {
+    if(x0 === null) return;
+    dx = e.clientX - x0;
+    if(Math.abs(dx) > 8 || Math.abs(e.clientY - y0) > 8) moved = true;
+    el.style.transform = `translateX(${dx}px) rotate(${dx/22}deg)`;
+    ok.style.opacity = Math.max(0, Math.min(1, dx/90)); no.style.opacity = Math.max(0, Math.min(1, -dx/90));
+  });
+  const end = () => {
+    if(x0 === null) return;
+    x0 = null; el.classList.remove('drag');
+    if(Math.abs(dx) > 90){ const d = dx > 0 ? 1 : -1; el.style.transform = `translateX(${d*520}px) rotate(${d*22}deg)`; setTimeout(() => cardAnswer(d > 0), 170); return; }
+    el.style.transform = ''; ok.style.opacity = 0; no.style.opacity = 0;
+    if(!moved){ ui.cards.flipped = !ui.cards.flipped; renderCards(); }
+  };
+  el.addEventListener('pointerup', end);
+  el.addEventListener('pointercancel', () => { x0 = null; el.classList.remove('drag'); el.style.transform = ''; ok.style.opacity = 0; no.style.opacity = 0; });
+  el.addEventListener('keydown', e => { if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); ui.cards.flipped = !ui.cards.flipped; renderCards(); } });
 }
 
 /* ============ Banner / Benachrichtigung ============ */
@@ -892,7 +1137,7 @@ async function notify(){
 }
 function checkDue(){
   ensureSchedule();
-  if(!db.words.length || ui.quiz) return;
+  if(!db.words.length || ui.quiz || ui.cards) return;
   const now = Date.now(), sc = S();
   const due = sc.times.filter(t => t <= now && !sc.done.includes(t));
   if(!due.length) return;
@@ -907,7 +1152,7 @@ function toast(msg){ const t = document.getElementById('toast'); t.textContent =
 /* ============ Aktionen ============ */
 const ACT = {
   go: d => go(d.to),
-  back: () => history.length > 1 ? history.back() : go('words'),
+  back: () => history.length > 1 && history.state && history.state.screen !== 'home' ? history.back() : go(ui.screen === 'add' ? 'home' : 'words'),
   open: d => go('detail', {detail:d.id}),
   filter: d => { ui.filter = d.f; render(); },
   quiz: () => startQuiz(),
@@ -951,6 +1196,20 @@ const ACT = {
   reveal: () => { ui.quiz.revealed = true; renderQuiz(); },
   flip: d => { answer(d.ok === '1'); renderQuiz(); },
   next: () => nextQ(),
+  typeSkip: () => { const Q = ui.quiz; if(!Q || Q.typed) return; Q.typed = { value:'', res:{ok:false} }; answer(false); renderQuiz(); },
+  retryWrong: () => { const Q = ui.quiz; const ws = Q.qs.filter((_,i) => !Q.results[i]).map(q => db.words.find(w => w.id === q.w.id)).filter(Boolean); startQuiz({ words: ws, title:'Fehler wiederholen', dir: Q.opts.dir, mode: Q.opts.mode || 'choice' }); },
+  mistakes: () => startQuiz({ words: shuffle(mistakeWords()).slice(0, 20), title:'Meine Fehler', dir:'mix', mode:'mix' }),
+  cset: d => { const c = custom(); c[d.k] = (d.k === 'n') ? Number(d.v) : d.v; save(); render(); },
+  customStart: () => {
+    const c = custom(), ws = selectWords(c.sel, c.n);
+    if(c.kind === 'cards') startCards(ws, c.front);
+    else startQuiz({ words: ws, title:'Eigener Test', dir:c.dir, mode:c.mode });
+  },
+  cardFlip: () => { if(ui.cards){ ui.cards.flipped = true; renderCards(); } },
+  cardOk: () => cardAnswer(true),
+  cardNo: () => cardAnswer(false),
+  cardsAgain: () => { const C = ui.cards; startCards(C.words.map(id => db.words.find(w => w.id === id)).filter(Boolean), C.front); },
+  cardsClose: () => { if(history.state && history.state.cards) history.back(); else closeCards(); },
   addMode: d => { ui.addMode = d.m; render(); },
   inLang: d => { db.settings.inLang = d.l; ui.lookup = null; save(); render(); },
   pickEn: d => { const L = ui.lookup; if(L && L.lang === 'de') doLookupDe(L.word, d.en); },
@@ -990,6 +1249,14 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('submit', e => {
   e.preventDefault();
+  if(e.target.id === 'typeForm'){
+    const Q = ui.quiz; if(!Q || Q.typed) return;
+    const q = Q.qs[Q.i], v = document.getElementById('typeIn').value.trim();
+    if(!v){ toast('Schreib deine Antwort – oder tippe „Weiß ich nicht“'); return; }
+    const res = checkTyped(v, q.accept, q.lang);
+    Q.typed = { value:v, res }; answer(res.ok); renderQuiz();
+    return;
+  }
   if(e.target.id === 'listForm'){
     const t = document.getElementById('listIn').value;
     if(!t.trim()){ toast('Füge zuerst eine Liste ein'); return; }
@@ -1074,12 +1341,12 @@ if(NATIVE){
     syncNotifications();
   })();
   if(LN) LN.addListener('localNotificationActionPerformed', a => {
-    if(a && a.notification && a.notification.extra && a.notification.extra.quiz && !ui.quiz){ checkDue(); startQuiz(); }
+    if(a && a.notification && a.notification.extra && a.notification.extra.quiz && !ui.quiz && !ui.cards){ checkDue(); startQuiz(); }
   });
   if(APP){
     APP.addListener('backButton', ({canGoBack}) => {
       if(document.getElementById('banner').classList.contains('show')) hideBanner();
-      else if(canGoBack && (ui.quiz || ui.screen !== 'home')) history.back();
+      else if(canGoBack && (ui.quiz || ui.cards || ui.screen !== 'home')) history.back();
       else if(ui.screen !== 'home') go('home');
       else APP.exitApp();
     });
