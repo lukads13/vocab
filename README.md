@@ -5,7 +5,7 @@ Eine Android-App zum Lernen englischer Vokabeln. Über den Tag verteilt fragt si
 - **Wort hinzufügen:** Englisches Wort eingeben. Die App holt die deutsche Übersetzung (MyMemory) und den Wörterbuch-Eintrag (dictionaryapi.dev) mit Aussprache, Bedeutung, Beispielsatz samt Übersetzung und Synonymen. Vor dem Speichern lässt sich alles anpassen.
 - **Spontan-Tests:** Die App würfelt jeden Tag zufällige Zeitpunkte in deinem Zeitfenster (z. B. 4× zwischen 8 und 21 Uhr) und plant sie 7 Tage im Voraus als Benachrichtigungen ein. Das funktioniert auch, wenn die App geschlossen ist. Tippst du auf die Benachrichtigung, startet der Test: Englisch → Deutsch, Deutsch → Englisch oder Lückentext. Schwache Wörter kommen öfter dran.
 - **Tests & Lernsessions:** Im Reiter *Tests* startest du einen Spontan-Test sofort, übst gezielt „Meine Fehler“ oder stellst dir einen eigenen Test zusammen (Wortauswahl, Anzahl, Richtung; Abfrage per Auswahl, Eintippen mit Tippfehler-Toleranz oder Hörtest). Für entspanntes Üben gibt es Vokabelzettel zum Umdrehen und Wischen.
-- **Teilen per Link:** Beim Teilen enthält der Text einen Link. Die Vokabeln stecken komprimiert im Link selbst (kein Server). Er öffnet eine kleine Seite (`site/i/`, GitHub Pages), deren Button die App startet; die Wörter landen dort unter „Vorschläge prüfen“.
+- **Teilen:** Einzelne oder mehrere Vokabeln (langes Drücken in der Liste) als kopierfertigen Text teilen – oder den eigenen Lernfortschritt als Bild.
 - **Offline & privat:** Lernen und Tests gehen ohne Internet, nur das Nachschlagen braucht eine Verbindung. Alle Daten bleiben auf dem Handy, es gibt keinen Account und keine Cloud.
 
 ## APK installieren
@@ -34,7 +34,6 @@ Der Token steckt dann in der APK und kann nur dieses Repo lesen. Ist das Repo ö
 | `android/` | Android-Projekt (Capacitor 8) |
 | `capacitor.config.json` | App-Name, ID, Benachrichtigungs-Icon |
 | `.github/workflows/android.yml` | baut die APK bei jedem Push und hängt sie an ein Release |
-| `site/` | Webseite für geteilte Links (GitHub Pages, `.github/workflows/pages.yml`) |
 | `BACKLOG.md` | besprochene, noch offene Ideen |
 
 Signiert wird mit einem eigenen Schlüssel, der **nicht** im Repo liegt, sondern in zwei GitHub Secrets (*Settings → Secrets and variables → Actions*):

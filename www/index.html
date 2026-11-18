@@ -129,6 +129,7 @@ nav.tabs button{border:none;background:transparent;display:flex;flex-direction:c
 nav.tabs button span{width:56px;height:30px;border-radius:15px;display:flex;align-items:center;justify-content:center}
 nav.tabs button[aria-current="page"]{color:var(--ink)}
 nav.tabs button[aria-current="page"] span{background:var(--accent-soft)}
+nav.tabs .dot{position:absolute;top:3px;right:12px;width:10px;height:10px;border-radius:5px;background:#E07A1F;border:2px solid #fff}
 
 .overlay{position:fixed;inset:0;z-index:20;background:var(--dark);color:#fff;overflow-y:auto}
 .overlay .in{max-width:480px;margin:0 auto;min-height:100%;display:flex;flex-direction:column;gap:18px;padding:calc(env(safe-area-inset-top) + 24px) 20px calc(env(safe-area-inset-bottom) + 24px)}
@@ -378,10 +379,12 @@ async function nativePermission(ask){
 }
 let syncing = Promise.resolve();
 function syncNotifications(){ syncing = syncing.then(doSync).catch(() => {}); return syncing; }
+let appVisible = true;   // in der Android-App: true, solange die App im Vordergrund ist
 async function doSync(){
   if(!LN) return;
   const pending = await LN.getPending().catch(() => ({notifications:[]}));
   if(pending.notifications && pending.notifications.length) await LN.cancel({notifications: pending.notifications.map(n => ({id:n.id}))});
+  if(appVisible) return;   // App offen: keine Benachrichtigungen – werden beim Verlassen wieder eingeplant
   if(!db.settings.notify || !db.words.length) return;
   if(await nativePermission(false) !== 'granted') return;
   const now = Date.now(), list = [];
@@ -428,8 +431,9 @@ function render(){
 function renderTabs(){
   const t = [['home','Start','home',['home']],['words','Vokabeln','list',['words','detail']],['tests','Tests','bolt',['tests']],['settings','Einstellungen','gear',['settings']]];
   document.getElementById('tabs').innerHTML = t.map(([s,l,i,act]) =>
-    `<button data-act="go" data-to="${s}" ${act.includes(ui.screen)?'aria-current="page"':''}><span>${ico(i)}</span>${l}</button>`).join('');
+    `<button data-act="go" data-to="${s}" ${act.includes(ui.screen)?'aria-current="page"':''}><span style="position:relative">${ico(i)}${s === 'tests' && testWaiting() ? '<i class="dot" aria-hidden="true"></i>' : ''}</span>${l}${s === 'tests' && testWaiting() ? '<b class="sr"> (Spontan-Test wartet)</b>' : ''}</button>`).join('');
 }
+function testWaiting(){ return !!(db.testWaiting && db.words.length && dayKey(new Date(db.testWaiting)) === dayKey()); }
 function wordRow(w, withBar){
   const [st, cls] = status(w);
   const selMode = withBar && ui.sel, on = selMode && ui.sel.includes(w.id);
@@ -467,6 +471,7 @@ home(){
   const dirL = {mix:'EN ↔ DE gemischt', en:'EN → DE', de:'DE → EN'}[s.dir];
   let when;
   if(!db.words.length) when = 'Füge ein paar Wörter hinzu – dann tauchen über den Tag verteilt Tests auf.';
+  else if(testWaiting()) when = 'Ein Spontan-Test wartet auf dich.';
   else if(n){ const h = new Date(n).getHours(); when = `Der nächste Test kommt überraschend – irgendwann zwischen ${h} und ${h+1} Uhr.`; }
   else when = 'Für heute sind alle Spontan-Tests durch. Morgen geht’s weiter.';
   const due = [...db.words].sort((a,b) => a.box - b.box || a.lastTested - b.lastTested).slice(0,5);
@@ -598,7 +603,8 @@ tests(){
   const count = selectWords(c.sel, c.n).length;
   const seg = (k, opts, cols) => `<div class="seg" style="grid-template-columns:repeat(${cols || opts.length},minmax(0,1fr))">${opts.map(([v,l]) => `<button data-act="cset" data-k="${k}" data-v="${v}" aria-pressed="${String(c[k]) === String(v)}">${l}</button>`).join('')}</div>`;
   let when = 'Für heute sind alle Spontan-Tests durch.';
-  if(n){ const h = new Date(n).getHours(); when = `Der nächste kommt überraschend – zwischen ${h} und ${h+1} Uhr.`; }
+  if(testWaiting()) when = 'Ein Spontan-Test wartet auf dich.';
+  else if(n){ const h = new Date(n).getHours(); when = `Der nächste kommt überraschend – zwischen ${h} und ${h+1} Uhr.`; }
   if(!db.words.length) return `<div class="stack"><h1>Tests</h1><div class="card stack" style="gap:12px"><h2>Noch keine Vokabeln</h2><p class="muted" style="line-height:1.5">Füge zuerst ein paar Wörter hinzu, dann kannst du hier üben.</p><button class="btn full" data-act="go" data-to="add">Wort hinzufügen</button></div></div>`;
   return `<div class="stack">
   <h1>Tests</h1>
@@ -1005,6 +1011,7 @@ function startQuiz(opts){
   hideBanner();
   if(!db.words.length){ toast('Füge zuerst ein paar Wörter hinzu'); return; }
   const spontan = !opts.words;
+  if(spontan && db.testWaiting){ db.testWaiting = 0; save(); }
   const words = spontan ? pickWords(Math.min(db.settings.perTest, db.words.length)) : opts.words;
   if(!words.length){ toast('Keine passenden Wörter gefunden'); return; }
   const qs = words.map(w => makeQuestion(w, opts.dir || db.settings.dir, opts.mode || 'choice'));
@@ -1260,8 +1267,11 @@ function checkDue(){
   const now = Date.now(), sc = S();
   const due = sc.times.filter(t => t <= now && !sc.done.includes(t));
   if(!due.length) return;
-  sc.done.push(...due); save();
-  if(!document.getElementById('banner').classList.contains('show')){ showBanner(); if(document.hidden) notify(); }
+  sc.done.push(...due);
+  // Kein Pop-up, solange die App offen ist – nur ein dezenter Hinweis (Startseite + Punkt am Tests-Reiter)
+  db.testWaiting = Date.now(); save();
+  if(document.hidden) notify();
+  if(!ui.quiz && !ui.cards && ui.modal == null) render();
 }
 
 /* ============ Toast ============ */
@@ -1292,10 +1302,10 @@ const ACT = {
     save(); syncNotifications(); toast(`${n} ${n === 1 ? 'Wort' : 'Wörter'} gelöscht`); endSel();
   },
   shareOne: d => openShare([d.id]),
-  shareStatus: () => { ui.share.status = !ui.share.status; renderShare(); },
+  shareTab: d => { ui.share.tab = d.t; renderShare(); },
   shareTextGo: () => shareAsText(),
   shareImgGo: () => shareAsImage(),
-  shareCopy: async () => { try{ await copyText(shareText(shareWords(), ui.share.link)); toast('Liste kopiert'); }catch(e){ toast('Kopieren hat nicht geklappt'); } },
+  shareCopy: async () => { const n = shareWords().length; try{ await copyText(shareText(shareWords())); toast(n === 1 ? 'Vokabel kopiert' : `${n} Vokabeln kopiert`); }catch(e){ toast('Kopieren hat nicht geklappt'); } },
   modalClose: () => closeModal(),
   bkPaste: async () => {
     try{ const t = await readClip(); const i = document.getElementById('bkIn'); if(i) i.value = t; bkCheck(t); if(!String(t).trim()) toast('Die Zwischenablage ist leer'); }
@@ -1514,31 +1524,7 @@ function bkCheck(text){
 }
 
 /* ============ Teilen ============ */
-/* ---- Vokabeln im Link: komprimiert + base64url, kein Server nötig ---- */
-const LINK_MAX = 200;
-const b64u = u8 => { let s = ''; for(let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); };
-const unb64u = s => { s = s.replace(/-/g,'+').replace(/_/g,'/'); while(s.length % 4) s += '='; return Uint8Array.from(atob(s), c => c.charCodeAt(0)); };
-async function packShare(words){
-  const json = JSON.stringify({ v:1, w: words.map(w => [w.en, w.de.join('; '), w.ipa||'', w.pos||'', w.ex||'', w.exDe||'']) });
-  const bytes = new TextEncoder().encode(json);
-  if('CompressionStream' in window){
-    try{ const z = new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(new CompressionStream('deflate-raw'))).arrayBuffer()); return 'z' + b64u(z); }catch(e){}
-  }
-  return 'j' + b64u(bytes);
-}
-async function unpackShare(code){
-  let bytes = unb64u(code.slice(1));
-  if(code[0] === 'z') bytes = new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer());
-  const j = JSON.parse(new TextDecoder().decode(bytes));
-  return (j.w||[]).map(a => ({ en:String(a[0]||'').trim(), de:String(a[1]||'').split(/;\s*/).map(x => x.trim()).filter(Boolean), ipa:a[2]||'', pos:a[3]||'', ex:a[4]||'', exDe:a[5]||'' })).filter(x => x.en);
-}
-function shareBase(){ const [owner, repo] = String(BUILD.repo || 'lukads13/vocab').split('/'); return `https://${owner.toLowerCase()}.github.io/${repo}/i/`; }
-function shareText(words, link){
-  const n = words.length;
-  const lines = words.map(w => `• ${w.en} – ${w.de.join(', ')}` + (n === 1 && w.ex ? `\n   „${w.ex}“` : ''));
-  return `📚 ${n === 1 ? 'Vokabel' : `Vokabeln (${n})`} zum Lernen\n${lines.join('\n')}\n\n`
-    + (link ? `👉 In die Vokabel-App übernehmen:\n${link}` : '→ In der Vokabel-App: Hinzufügen → Liste → einfügen');
-}
+function shareText(words){ return words.map(w => `${w.en} – ${w.de.join(', ')}`).join('\n'); }
 const IMG_MAX = 30;
 function drawShareImage(words, withStatus){
   const W = 1080, P = 64, F = (wt, sz, it) => `${it ? 'italic ' : ''}${wt} ${sz}px system-ui, -apple-system, Roboto, "Segoe UI", sans-serif`;
@@ -1579,7 +1565,7 @@ function drawShareImage(words, withStatus){
   } else {
     const shown = words.slice(0, IMG_MAX), more = words.length - shown.length;
     let cy = P;
-    add(['t', 'Vokabeln zum Lernen', F(800, 64), C.ink, P, cy + 58]); cy += 84;
+    add(['t', 'Mein Lernfortschritt', F(800, 64), C.ink, P, cy + 58]); cy += 84;
     add(['t', `${words.length} Wörter`, F(500, 34), C.muted, P, cy + 30]); cy += 64;
     const cardTop = cy; add(['card', P, cardTop]); cy += 20;
     const chipW = 230, textW = inner - (withStatus ? chipW + 24 : 0);
@@ -1614,75 +1600,53 @@ function drawShareImage(words, withStatus){
   return cv;
 }
 function shareWords(){ return (ui.share ? ui.share.ids : []).map(id => db.words.find(w => w.id === id)).filter(Boolean); }
-async function openShare(ids){
-  ui.share = { ids, status: false, link: '' }; ui.modal = 'share';
-  const ws = shareWords();
-  if(ws.length && ws.length <= LINK_MAX){ try{ ui.share.link = shareBase() + '#' + await packShare(ws); }catch(e){} }
+function openShare(ids){
+  ui.share = { ids, tab:'text' }; ui.modal = 'share';
   renderShare();
 }
 function renderShare(){
   const ws = shareWords(); if(!ws.length){ closeModal(); return; }
-  const url = drawShareImage(ws, ui.share.status).toDataURL('image/png');
-  ui.share.png = url;
-  openModal(`<div class="row between"><h2>${ws.length === 1 ? `„${esc(ws[0].en)}“ teilen` : `${ws.length} Vokabeln teilen`}</h2>
+  const tab = ui.share.tab, n = ws.length;
+  const tabs = `<div class="seg" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+      <button data-act="shareTab" data-t="text" aria-pressed="${tab === 'text'}">Text</button>
+      <button data-act="shareTab" data-t="img" aria-pressed="${tab === 'img'}">Lernfortschritt</button></div>`;
+  let body;
+  if(tab === 'text'){
+    const t = shareText(ws);
+    body = `<label class="sr" for="shareTxt">Vokabeln als Text</label>
+      <textarea id="shareTxt" class="input" readonly rows="${Math.min(8, Math.max(2, n))}" style="font-size:15px;line-height:1.5;resize:none">${esc(t)}</textarea>
+      <button class="btn full" style="height:52px;border-radius:26px" data-act="shareCopy">Kopieren</button>
+      <button class="btn line full" data-act="shareTextGo">${ico('share',18,'style="vertical-align:-4px;margin-right:6px"')}Teilen …</button>`;
+  } else {
+    if(!ui.share.png) ui.share.png = drawShareImage(ws, true).toDataURL('image/png');
+    body = `<img class="shareimg" src="${ui.share.png}" alt="Bild mit deinem Lernfortschritt">
+      ${n > IMG_MAX ? `<p class="small muted">Das Bild zeigt die ersten ${IMG_MAX} Wörter.</p>` : ''}
+      <button class="btn full" style="height:52px;border-radius:26px" data-act="shareImgGo">${ico('share',18,'style="vertical-align:-4px;margin-right:6px"')}Bild teilen</button>`;
+  }
+  openModal(`<div class="row between"><h2>${n === 1 ? `„${esc(ws[0].en)}“ teilen` : `${n} Vokabeln teilen`}</h2>
       <button class="link" style="color:var(--muted);display:flex;align-items:center" data-act="modalClose" aria-label="Schließen">${ico('x',22)}</button></div>
-    <img class="shareimg" src="${url}" alt="Vorschau des Bildes zum Teilen">
-    ${ws.length > IMG_MAX ? `<p class="small muted">Das Bild zeigt die ersten ${IMG_MAX} Wörter, der Text enthält alle ${ws.length}.</p>` : ''}
-    <div class="setrow" style="padding:4px 0"><div><p style="font-weight:600">Mein Lernstand im Bild</p><p class="small muted">Nur im Bild, nicht im Text</p></div>
-      <button class="switch" aria-label="Mein Lernstand im Bild" aria-pressed="${ui.share.status}" data-act="shareStatus"><span></span></button></div>
-    <button class="btn full" style="height:52px;border-radius:26px" data-act="shareTextGo">${ico('share',18,'style="vertical-align:-4px;margin-right:6px"')}Als Text teilen</button>
-    <button class="btn line full" data-act="shareImgGo">Als Bild teilen</button>
-    <button class="link" style="align-self:center" data-act="shareCopy">Liste kopieren</button>
-    <p class="small muted" style="text-align:center;line-height:1.45">${ui.share.link ? 'Der Text enthält einen Link – damit landen die Wörter mit einem Tipp in der App des Empfängers.' : `Für mehr als ${LINK_MAX} Wörter gibt es keinen Link – die Liste lässt sich aber einfügen.`}</p>`);
+    ${tabs}${body}`);
 }
 async function shareAsText(){
-  const t = shareText(shareWords(), ui.share.link);
+  const t = shareText(shareWords());
   try{
     if(SHARE){ await SHARE.share({ text:t, dialogTitle:'Vokabeln teilen' }); return; }
     if(navigator.share){ await navigator.share({ text:t }); return; }
-    await copyText(t); toast('Liste kopiert');
+    await copyText(t); toast('Kopiert');
   }catch(e){ if(e && e.name !== 'AbortError' && !/cancel/i.test(String(e.message||e))) toast('Teilen hat nicht geklappt'); }
 }
 async function shareAsImage(){
-  const ws = shareWords(), t = shareText(ws, ui.share.link), url = ui.share.png, b64 = url.split(',')[1];
-  const name = `vokabeln-${Date.now()}.png`;
+  const url = ui.share.png, b64 = url.split(',')[1], name = `lernfortschritt-${Date.now()}.png`;
   try{
     if(SHARE && FS){
       const f = await FS.writeFile({ path:name, data:b64, directory:'CACHE' });
-      await SHARE.share({ files:[f.uri], text:t, dialogTitle:'Vokabeln teilen' }); return;
+      await SHARE.share({ files:[f.uri], dialogTitle:'Lernfortschritt teilen' }); return;
     }
     const blob = await (await fetch(url)).blob(), file = new File([blob], name, { type:'image/png' });
-    if(navigator.canShare && navigator.canShare({ files:[file] })){ await navigator.share({ files:[file], text:t }); return; }
+    if(navigator.canShare && navigator.canShare({ files:[file] })){ await navigator.share({ files:[file] }); return; }
     const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
     toast('Bild gespeichert');
   }catch(e){ if(e && e.name !== 'AbortError' && !/cancel/i.test(String(e.message||e))) toast('Teilen hat nicht geklappt'); }
-}
-
-/* ============ Geteilten Link öffnen ============ */
-let lastUrl = '';
-async function handleOpenUrl(url){
-  if(!url || url === lastUrl) return; lastUrl = url;
-  let code = '';
-  try{ const u = new URL(url); if(u.protocol !== 'vokabeln:') return; code = u.searchParams.get('d') || ''; }catch(e){ return; }
-  if(!code) return;
-  let items;
-  try{ items = await unpackShare(code); }catch(e){ toast('Der Link ist ungültig oder unvollständig'); return; }
-  importShared(items);
-}
-function importShared(items){
-  db.queue = db.queue || [];
-  let added = 0, skipped = 0;
-  for(const it of items){
-    if(findWord(it.en) || db.queue.some(q => norm(q.en) === norm(it.en))){ skipped++; continue; }
-    db.queue.push({ id:uid(), lang:'en', en:it.en, deUser:null, status:'done', note:'', deText: it.de.join(', '),
-      data: { ...emptyData(it.en), de:it.de, ipa:it.ipa, pos:it.pos, ex:it.ex, exDe:it.exDe } });
-    added++;
-  }
-  save();
-  if(ui.quiz) closeQuiz(); if(ui.cards) closeCards(); if(!document.getElementById('modal').hidden) closeModal(); hideBanner();
-  db.settings.inLang = 'en'; ui.addMode = 'list'; go('add');
-  toast(added ? `${added} ${added === 1 ? 'Vokabel' : 'Vokabeln'} aus dem Link – bitte prüfen${skipped ? ` · ${skipped} schon vorhanden` : ''}`
-              : 'Diese Vokabeln hast du schon alle');
 }
 
 /* ============ Mehrfachauswahl in der Vokabelliste ============ */
@@ -1744,10 +1708,9 @@ if(NATIVE){
       else if(ui.screen !== 'home') go('home');
       else APP.exitApp();
     });
-    APP.addListener('appUrlOpen', e => handleOpenUrl(e && e.url));
-    if(APP.getLaunchUrl) APP.getLaunchUrl().then(r => { if(r && r.url) handleOpenUrl(r.url); }).catch(() => {});
-    APP.addListener('pause', () => { ui.pausedAt = Date.now(); });
+    APP.addListener('pause', () => { ui.pausedAt = Date.now(); appVisible = false; syncNotifications(); });
     APP.addListener('resume', () => {
+      appVisible = true;
       checkDue(); syncNotifications(); resumeInstall();
       if(ui.pausedAt && Date.now() - ui.pausedAt >= AWAY_MIN * 60000) countOpen();
       ui.pausedAt = 0;
