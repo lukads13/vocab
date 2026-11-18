@@ -102,6 +102,15 @@ p{margin:0}
 .filters{display:flex;gap:8px;overflow-x:auto}
 .filters button{height:38px;padding:0 14px;border-radius:19px;border:1px solid var(--line);background:#fff;font-weight:600;font-size:13px;white-space:nowrap}
 .filters button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
+.dchip{height:36px;padding:0 12px;border-radius:18px;border:1px solid var(--line);background:#fff;font-size:14px;font-weight:500}
+.dchip[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+.sense{display:flex;flex-direction:column;gap:6px;align-items:flex-start;text-align:left;width:100%;padding:12px 14px;border-radius:16px;border:1.5px solid var(--line);background:#fff}
+.sense[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.radio{flex:none;width:18px;height:18px;border-radius:9px;border:2px solid #B9B7AF;background:#fff}
+.sense[aria-pressed="true"] .radio{border:5px solid var(--accent)}
+.memo{background:#FFF4DC;color:#5A3D00;border-radius:16px;padding:12px 14px;font-size:14px;line-height:1.5}
+.sortopt{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:48px;padding:0 14px;border-radius:14px;border:none;background:transparent;font-size:15px;font-weight:500;text-align:left}
+.sortopt[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent-ink);font-weight:700}
 .field{display:flex;flex-direction:column;gap:6px}
 .field label{font-size:13px;font-weight:600;color:#3A3B42}
 .input{height:52px;padding:0 16px;border-radius:16px;border:1.5px solid #CFCDC5;background:#fff;font-size:17px;width:100%;min-width:0}
@@ -216,7 +225,8 @@ const SAMPLES = [
   {en:'sturdy',ipa:'/ˈstɜːdi/',pos:'Adjektiv',de:['stabil','robust'],def:'Strong and solidly built; not easily damaged.',ex:'We need a sturdy table for the workshop.',exDe:'Wir brauchen einen stabilen Tisch für die Werkstatt.',syn:['solid','robust']},
   {en:'eager',ipa:'/ˈiːɡə/',pos:'Adjektiv',de:['eifrig','begierig'],def:'Wanting very much to do or have something.',ex:'The new team members were eager to learn.',exDe:'Die neuen Teammitglieder wollten unbedingt dazulernen.',syn:['keen','enthusiastic']}
 ];
-function makeWord(o){ return { id:uid(), en:o.en.trim(), de:(o.de||[]).filter(Boolean), ipa:o.ipa||'', pos:o.pos||'', def:o.def||'', defs:o.defs||[], ex:o.ex||'', exDe:o.exDe||'', syn:o.syn||[], audio:o.audio||'', box:0, right:0, wrong:0, tested:0, lastTested:0, created:Date.now() }; }
+function makeWord(o){ return { id:uid(), en:o.en.trim(), de:(o.de||[]).filter(Boolean), ipa:o.ipa||'', pos:o.pos||'', def:o.def||'', defs:o.defs||[], ex:o.ex||'', exDe:o.exDe||'', syn:o.syn||[], audio:o.audio||'',
+  senses:o.senses||[], sense:o.sense||0, alts:o.alts||[], note:o.note||'', box:0, right:0, wrong:0, tested:0, lastTested:0, created:Date.now() }; }
 function findWord(en){ const k = norm(en); return db.words.find(w => norm(w.en) === k); }
 function norm(s){ return String(s||'').trim().toLowerCase().replace(/^to\s+/,''); }
 function status(w){ if(!w.tested) return ['Neu','new']; return w.box >= 4 ? ['Sicher','sure'] : ['Lernend','learn']; }
@@ -445,21 +455,27 @@ function wordRow(w, withBar){
       </span><span class="chip ${cls}">${st}</span>
     </span>${withBar ? `<span class="bar"><i style="width:${w.box*20}%"></i></span>` : ''}</button>`;
 }
+const SORTS = [
+  ['new','Neueste zuerst', (a,b) => b.created - a.created],
+  ['old','Älteste zuerst', (a,b) => a.created - b.created],
+  ['az','A–Z Englisch', (a,b) => norm(a.en).localeCompare(norm(b.en), 'en')],
+  ['azde','A–Z Deutsch', (a,b) => String(a.de[0]||'').localeCompare(String(b.de[0]||''), 'de', { sensitivity:'base' })],
+  ['weak','Schwächste zuerst', (a,b) => a.box - b.box || (b.wrong||0) - (a.wrong||0) || b.created - a.created],
+  ['strong','Sicherste zuerst', (a,b) => b.box - a.box || (b.right||0) - (a.right||0) || b.created - a.created],
+  ['recent','Zuletzt geübt', (a,b) => (b.lastTested||0) - (a.lastTested||0) || b.created - a.created],
+  ['wrong','Am häufigsten falsch', (a,b) => (b.wrong||0) - (a.wrong||0) || a.box - b.box]
+];
+function sortDef(){ return SORTS.find(x => x[0] === db.settings.sort) || SORTS[0]; }
 function visibleWords(){
   const q = norm(ui.q);
-  return [...db.words].sort((a,b) => b.created - a.created).filter(w => {
+  return [...db.words].sort(sortDef()[2]).filter(w => {
     if(ui.filter !== 'all' && status(w)[1] !== ui.filter) return false;
     if(!q) return true;
     return norm(w.en).includes(q) || w.de.some(x => x.toLowerCase().includes(q));
   });
 }
 function wordRows(){
-  const q = norm(ui.q);
-  const rows = [...db.words].sort((a,b) => b.created - a.created).filter(w => {
-    if(ui.filter !== 'all' && status(w)[1] !== ui.filter) return false;
-    if(!q) return true;
-    return norm(w.en).includes(q) || w.de.some(x => x.toLowerCase().includes(q));
-  });
+  const rows = visibleWords();
   return rows.map(w => wordRow(w,true)).join('') || `<p class="muted" style="text-align:center;padding:16px 0">${db.words.length ? 'Nichts gefunden.' : 'Noch keine Vokabeln.'}</p>`;
 }
 function greeting(){ const h = new Date().getHours(); return h < 11 ? 'Guten Morgen' : h < 18 ? 'Hallo' : 'Guten Abend'; }
@@ -526,6 +542,8 @@ words(){
   ${ui.sel || !db.words.length ? '' : '<p class="small muted" style="margin-top:-6px">Tipp: Lange drücken, um mehrere Wörter auszuwählen.</p>'}
   <div class="search">${ico('search',20)}<label class="sr" for="q">Suchen</label><input id="q" type="search" placeholder="Englisch oder Deutsch suchen" value="${esc(ui.q)}" autocomplete="off"></div>
   <div class="filters">${f.map(([k,l]) => `<button data-act="filter" data-f="${k}" aria-pressed="${ui.filter===k}">${l}</button>`).join('')}</div>
+  <div class="row between" style="margin:-4px 0 -6px"><p class="small muted">${visibleWords().length} angezeigt</p>
+    <button class="link" style="display:flex;align-items:center;gap:6px" data-act="sortOpen" aria-haspopup="dialog">${ico('list',18)} ${esc(sortDef()[1])}</button></div>
   <div class="stack" style="gap:8px" id="rows">${wordRows()}</div>
   </div>`;
 },
@@ -579,14 +597,16 @@ detail(){
   if(!w) return VIEWS.words();
   const [st] = status(w);
   return `<div class="stack" style="gap:14px">
-  <div class="row between"><button class="back" data-act="back">${ico('back')} Vokabeln</button>
-    <button class="btn line" style="height:44px;display:flex;align-items:center;gap:6px" data-act="shareOne" data-id="${w.id}">${ico('share',18)} Teilen</button></div>
+  <div class="row between" style="gap:8px"><button class="back" data-act="back">${ico('back')} Vokabeln</button>
+    <div class="row" style="gap:8px">
+      <button class="btn line" style="height:44px;padding:0 14px" data-act="editOpen" data-id="${w.id}">Bearbeiten</button>
+      <button class="btn line" style="height:44px;padding:0 14px;display:flex;align-items:center" data-act="shareOne" data-id="${w.id}" aria-label="Teilen">${ico('share',18)}</button></div></div>
   <div class="card stack" style="gap:18px;border-radius:28px;padding:22px">
     ${entryHead(w)}
     <div class="stack" style="gap:8px"><p class="label">Deutsch</p>
-      ${ui.editDe ? `<form id="deForm" class="stack" style="gap:8px"><label class="sr" for="deEdit">Deutsche Bedeutungen</label><input class="input" id="deEdit" value="${esc(w.de.join(', '))}"><p class="small muted">Mehrere Bedeutungen mit Komma trennen.</p><button class="btn" type="submit">Speichern</button></form>`
-        : `<div class="row wrap" style="gap:8px">${w.de.map(t => `<span class="tchip">${esc(t)}</span>`).join('')}</div><button class="link" style="align-self:flex-start" data-act="editDe">Übersetzung bearbeiten</button>`}
+      <div class="row wrap" style="gap:8px">${w.de.map(t => `<span class="tchip">${esc(t)}</span>`).join('')}</div>
     </div>
+    ${w.note ? `<div class="memo"><b>Merkhilfe:</b> ${esc(w.note)}</div>` : ''}
     ${entryBody(w)}
     <div class="stack" style="gap:8px;border-top:1px solid var(--line);padding-top:14px">
       <div class="row between"><p style="font-weight:600;font-size:14px">Lernstand: ${st}</p><p class="small muted">${w.box} von 5</p></div>
@@ -595,6 +615,37 @@ detail(){
     </div>
   </div>
   <button class="btn danger full" data-act="del">${ui.delArm ? 'Wirklich löschen? Nochmal tippen' : 'Wort löschen'}</button>
+  </div>`;
+},
+
+edit(){
+  const F = ui.form, w = F && db.words.find(x => x.id === F.id);
+  if(!F || !w) return VIEWS.words();
+  const d = F.data;
+  return `<div class="stack" style="gap:14px">
+  <button class="back" data-act="editCancel">${ico('back')} Abbrechen</button>
+  <h1>Vokabel bearbeiten</h1>
+  <div class="card stack" style="gap:18px;border-radius:28px;padding:22px">
+    <div class="field"><label for="fEn">Englisch</label>
+      <input class="input" id="fEn" data-ctx="edit" data-field="en" value="${esc(d.en)}" autocapitalize="none" spellcheck="false"></div>
+    <div class="field"><label for="deIn">Deutsch</label>
+      ${deChips(d.alts, F.deText, 'edit')}
+      <input class="input" id="deIn" data-ctx="edit" data-field="de" value="${esc(F.deText)}" placeholder="deutsche Bedeutung(en), mit Komma getrennt"></div>
+    <div class="stack" style="gap:8px">
+      <p class="label">${(d.senses||[]).length > 1 ? 'Welche Bedeutung gilt?' : 'Bedeutung'}</p>
+      ${(d.senses||[]).length > 1 ? senseList(d, 'edit') : (d.def ? `<p style="font-size:15px;line-height:1.5">${d.pos ? `<span class="chip" style="margin-right:6px">${esc(d.pos)}</span>` : ''}${esc(d.def)}</p>` : '<p class="small muted">Noch keine Bedeutung aus dem Wörterbuch.</p>')}
+      <button class="btn line" style="height:44px;align-self:flex-start;display:flex;align-items:center;gap:8px" data-act="editReload" ${F.reloading ? 'disabled' : ''}>${F.reloading ? '<span class="spinner" style="width:18px;height:18px"></span> Lade …' : 'Aus dem Wörterbuch neu laden'}</button>
+    </div>
+    ${exampleFields(d, 'edit')}
+    <div class="field"><label for="fNote">Merkhilfe <span class="muted" style="font-weight:400">(optional)</span></label>
+      <textarea class="input" id="fNote" data-ctx="edit" data-field="note" rows="2" style="font-size:15px" placeholder="z. B. eine Eselsbrücke – erscheint auf den Lernzetteln und im Test">${esc(d.note||'')}</textarea></div>
+    <div class="row" style="gap:10px"><button class="btn line" data-act="editCancel">Abbrechen</button><button class="btn" style="flex:1;height:52px;border-radius:26px" data-act="editSave">Speichern</button></div>
+  </div>
+  <div class="card stack" style="gap:10px">
+    <div class="row between"><p style="font-weight:600">Lernstand: ${status(w)[0]} · ${w.box} von 5</p></div>
+    <p class="small muted" style="line-height:1.45">Zurücksetzen, wenn du das Wort wieder ganz neu lernen willst. Gilt sofort.</p>
+    <button class="btn danger" data-act="resetProgress">${ui.resetArm ? 'Wirklich zurücksetzen? Nochmal tippen' : 'Lernstand zurücksetzen'}</button>
+  </div>
   </div>`;
 },
 
@@ -698,26 +749,60 @@ function entryBody(d){
   ${d.ex ? `<div class="ctx"><p class="label">Im Kontext</p><p style="font-size:15px;line-height:1.5;font-weight:500">${esc(d.ex)}</p>${d.exDe?`<p class="muted" style="font-size:14px;line-height:1.5;font-style:italic">${esc(d.exDe)}</p>`:''}</div>` : ''}
   ${d.syn && d.syn.length ? `<div class="stack" style="gap:8px"><p class="label">Synonyme</p><div class="row wrap" style="gap:6px">${d.syn.map(s => `<span class="ochip">${esc(s)}</span>`).join('')}</div></div>` : ''}`;
 }
+/* Ein „Modell“ für die drei Orte, an denen eine Vokabel bearbeitet wird: Einzelwort, Vorschlag, Bearbeiten */
+function modelOf(ctx){
+  if(ctx === 'add'){ const L = ui.lookup; if(!L || !L.data) return null;
+    return { d:L.data, get de(){ return L.deText || ''; }, set de(v){ L.deText = v; }, refresh: () => render(), exArea: true }; }
+  if(ctx === 'edit'){ const F = ui.form; if(!F) return null;
+    return { d:F.data, get de(){ return F.deText || ''; }, set de(v){ F.deText = v; }, refresh: () => render(), exArea: true }; }
+  if(ctx && ctx.startsWith('q:')){ const q = (db.queue||[]).find(x => x.id === ctx.slice(2)); if(!q || !q.data) return null;
+    return { d:q.data, get de(){ return q.deText || ''; }, set de(v){ q.deText = v; q.deTouched = true; }, refresh: () => { save(); updateQueueCard(q.id, true); updateQueueHead(); } }; }
+  return null;
+}
+const splitDe = t => String(t||'').split(/[,;]/).map(x => x.trim()).filter(Boolean);
+function deChips(alts, deText, ctx){
+  const cur = splitDe(deText), sel = cur.map(x => x.toLowerCase());
+  const all = uniqI([...(alts||[]), ...cur]);
+  if(all.length < 2) return '';
+  return `<div class="row wrap" style="gap:6px">${all.map(a => { const on = sel.includes(a.toLowerCase());
+    return `<button type="button" class="dchip" data-act="deChip" data-ctx="${ctx}" data-v="${esc(a)}" aria-pressed="${on}">${on ? '✓ ' : ''}${esc(a)}</button>`; }).join('')}</div>`;
+}
+function senseList(d, ctx){
+  const S = d.senses || []; if(S.length < 2) return '';
+  return `<div class="stack" style="gap:8px">${S.map((s, i) => `<button type="button" class="sense" data-act="sensePick" data-ctx="${ctx}" data-i="${i}" aria-pressed="${i === (d.sense||0)}">
+      <span class="row" style="gap:8px"><span class="radio" aria-hidden="true"></span>${s.pos ? `<span class="chip">${esc(s.pos)}</span>` : ''}</span>
+      <span style="font-size:15px;line-height:1.45">${esc(s.def)}</span>
+      ${s.ex ? `<span class="small muted" style="font-style:italic;line-height:1.4">„${esc(s.ex)}“</span>` : ''}</button>`).join('')}</div>`;
+}
+function exampleFields(d, ctx){
+  return `<div class="field"><label for="fEx">Beispielsatz</label>
+      <textarea class="input" id="fEx" data-ctx="${ctx}" data-field="ex" rows="2" style="font-size:15px">${esc(d.ex||'')}</textarea>
+      <label for="exDeIn">Auf Deutsch</label>
+      <textarea class="input" id="exDeIn" data-ctx="${ctx}" data-field="exDe" rows="2" style="font-size:15px" placeholder="${d.exLoading ? 'Übersetze …' : ''}">${esc(d.exDe||'')}</textarea></div>`;
+}
 function enPicker(alts, cur, act, id){
   return (alts||[]).length > 1 ? `<div class="row wrap" style="gap:6px">${alts.map(a => `<button type="button" class="pill" style="height:36px;padding:0 12px;${norm(a) === norm(cur) ? 'background:var(--accent);border-color:var(--accent);color:#fff' : 'background:#fff'}" data-act="${act}" ${id ? `data-id="${id}"` : ''} data-en="${esc(a)}" aria-pressed="${norm(a) === norm(cur)}">${esc(a)}</button>`).join('')}</div>` : '';
 }
 function entryEditor(d, note){
   const L = ui.lookup || {}, isDe = L.lang === 'de';
   const exists = d.en && findWord(d.en);
+  const many = (d.senses||[]).length > 1;
   return `<div class="card stack" style="gap:18px;border-radius:28px;padding:22px">
     ${note ? `<p class="small" style="background:var(--new-bg);color:var(--new-fg);padding:10px 12px;border-radius:12px;line-height:1.45">${esc(note)}</p>` : ''}
     ${isDe ? `<p class="small muted">Du hast eingegeben: <b style="color:var(--ink)">${esc(L.word)}</b></p>` : ''}
     ${d.en ? entryHead(d) : ''}
     ${isDe ? `<div class="field"><label for="enIn" class="label" style="color:var(--muted)">Englisch</label>
       ${enPicker(L.alts, d.en, 'pickEn')}
-      <input class="input" id="enIn" form="saveForm" value="${esc(d.en)}" autocapitalize="none" spellcheck="false" placeholder="englisches Wort">
+      <input class="input" id="enIn" data-ctx="add" data-field="en" value="${esc(L.enText != null ? L.enText : d.en)}" autocapitalize="none" spellcheck="false" placeholder="englisches Wort">
       ${(L.alts||[]).length > 1 ? '<p class="small muted">Tippe auf einen Vorschlag, um ihn nachzuschlagen – oder schreib das Wort selbst.</p>' : ''}</div>` : ''}
     <form id="saveForm" class="stack" style="gap:18px">
       <div class="field"><label for="deIn" class="label" style="color:var(--muted)">Deutsch</label>
-        <input class="input" id="deIn" value="${esc(d.de.join(', '))}" placeholder="deutsche Bedeutung(en), mit Komma getrennt">
+        ${deChips(d.alts, L.deText, 'add')}
+        <input class="input" id="deIn" data-ctx="add" data-field="de" value="${esc(L.deText||'')}" placeholder="deutsche Bedeutung(en), mit Komma getrennt">
       </div>
-      ${entryBody(d)}
-      ${d.ex ? `<div class="field"><label for="exDeIn">Beispiel auf Deutsch (optional anpassen)</label><textarea class="input" id="exDeIn">${esc(d.exDe||'')}</textarea></div>` : ''}
+      ${many ? `<div class="stack" style="gap:8px"><p class="label">Welche Bedeutung gilt?</p>${senseList(d, 'add')}</div>` : entryBody({ ...d, ex:'', syn:[] })}
+      ${d.ex || d.senses && d.senses.length ? exampleFields(d, 'add') : ''}
+      ${d.syn && d.syn.length ? `<div class="stack" style="gap:8px"><p class="label">Synonyme</p><div class="row wrap" style="gap:6px">${d.syn.map(x => `<span class="ochip">${esc(x)}</span>`).join('')}</div></div>` : ''}
       ${exists ? `<div class="row" style="gap:8px;justify-content:center;min-height:52px;border-radius:26px;background:var(--ok-bg);color:var(--ok-fg);font-weight:600">${ico('check',20)} Schon in deiner Liste</div>
         <button type="button" class="btn line full" data-act="open" data-id="${exists.id}">Eintrag öffnen</button>`
         : `<button class="btn full" type="submit" style="height:52px;border-radius:26px">Zur Vokabelliste hinzufügen</button>`}
@@ -736,7 +821,7 @@ async function translate(text, pair='en|de'){
   if(!j || (j.responseStatus && Number(j.responseStatus) !== 200)) throw new Error('mm');
   const out = [], seen = new Set(), add = s => {
     s = String(s||'').trim().replace(/[.!]+$/,''); const k = s.toLowerCase();
-    if(!s || /MYMEMORY|QUERY LENGTH/i.test(s) || seen.has(k) || k === text.toLowerCase()) return; seen.add(k); out.push(s);
+    if(!s || /MYMEMORY|QUERY LENGTH/i.test(s) || seen.has(k) || s === text.trim()) return; /* nur unveränderte Echos verwerfen – „Bank“ für „bank“ ist eine echte Übersetzung */ seen.add(k); out.push(s);
   };
   add(j.responseData && j.responseData.translatedText);
   (j.matches||[]).filter(m => Number(m.quality||0) >= 50 || m.quality === undefined).forEach(m => add(m.translation));
@@ -755,34 +840,57 @@ const emptyData = en => ({ en, de:[], ipa:'', pos:'', def:'', defs:[], ex:'', ex
 const NO_EN = 'Keine englische Übersetzung gefunden – trag das englische Wort selbst ein.';
 function inLang(){ return db.settings.inLang === 'de' ? 'de' : 'en'; }
 function findByGerman(g){ const k = String(g||'').trim().toLowerCase(); return db.words.find(w => w.de.some(x => x.toLowerCase() === k)); }
+/* ---- Bedeutungen ---- */
+function senseExample(d, i){
+  const s = d.senses[i]; if(s.ex) return s.ex;
+  const same = d.senses.find(x => x.pos === s.pos && x.ex);   // sonst ein Beispiel derselben Wortart
+  return same ? same.ex : '';
+}
+function applySense(d, i){   // true, wenn sich der Beispielsatz geändert hat (Übersetzung neu laden)
+  const s = d.senses && d.senses[i]; if(!s) return false;
+  d.sense = i; d.pos = s.pos; d.def = s.def; d.defs = [{ pos:s.pos, def:s.def }];
+  const ex = senseExample(d, i);
+  if(ex !== d.ex){ d.ex = ex; d.exDe = ''; return !!ex; }
+  return false;
+}
+async function translateExample(d, after){
+  const ex = d.ex; if(!ex) return;
+  d.exLoading = true;
+  try{ const t = (await translate(ex))[0] || ''; if(d.ex === ex){ d.exDe = t; } }catch(e){}
+  if(d.ex === ex){ d.exLoading = false; after && after(); }
+}
+function wordToData(w){
+  const senses = (w.senses && w.senses.length) ? w.senses.map(s => ({...s})) : (w.def ? [{ pos:w.pos||'', def:w.def, ex:w.ex||'' }] : []);
+  return { en:w.en, de:[...w.de], alts:uniqI([...(w.alts||[]), ...w.de]), ipa:w.ipa||'', pos:w.pos||'', def:w.def||'', defs:w.defs||[], ex:w.ex||'', exDe:w.exDe||'',
+    syn:[...(w.syn||[])], audio:w.audio||'', senses, sense: Math.min(w.sense||0, Math.max(0, senses.length-1)), note:w.note||'' };
+}
 async function lookupData(word){
   const base = word.toLowerCase().replace(/^to\s+/,'');
   const [dict, tr] = await Promise.allSettled([
     fetchJSON(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(base)}`),
     translate(word)
   ]);
-  const d = { en:word, de:[], ipa:'', pos:'', def:'', defs:[], ex:'', exDe:'', syn:[], audio:'' };
+  const d = { en:word, de:[], alts:[], ipa:'', pos:'', def:'', defs:[], ex:'', exDe:'', syn:[], audio:'', senses:[], sense:0 };
   let note = '';
   if(dict.status === 'fulfilled' && Array.isArray(dict.value)){
     const E = dict.value;
     for(const e of E){ if(!d.ipa) d.ipa = e.phonetic || ((e.phonetics||[]).find(p => p.text)||{}).text || ''; if(!d.audio) d.audio = ((e.phonetics||[]).find(p => p.audio)||{}).audio || ''; }
-    const syn = new Set();
+    const syn = new Set(), perPos = {};
+    // bis zu 6 Bedeutungen, höchstens 2 pro Wortart – in der Reihenfolge des Wörterbuchs (häufigste zuerst)
     for(const e of E) for(const m of (e.meanings||[])){
       const pos = POS[m.partOfSpeech] || m.partOfSpeech || '';
-      if(!d.pos) d.pos = pos;
       (m.synonyms||[]).forEach(s => syn.add(s));
       for(const df of (m.definitions||[])){
-        if(d.defs.length < 3 && !d.defs.some(x => x.pos === pos)) d.defs.push({pos, def:df.definition});
-        if(!d.ex && df.example) d.ex = df.example;
+        if(d.senses.length < 6 && (perPos[pos]||0) < 2 && df.definition && !d.senses.some(x => x.def === df.definition)){
+          d.senses.push({ pos, def:df.definition, ex:df.example||'' }); perPos[pos] = (perPos[pos]||0) + 1;
+        }
         (df.synonyms||[]).forEach(s => syn.add(s));
       }
     }
-    if(!d.defs.length){ const m = (E[0].meanings||[])[0]; if(m && m.definitions[0]) d.defs.push({pos:d.pos, def:m.definitions[0].definition}); }
-    d.def = d.defs[0] ? d.defs[0].def : '';
+    if(d.senses.length) applySense(d, 0);
     d.syn = [...syn].slice(0,6);
-    if(d.pos === 'Verb' && !/^to\s/i.test(d.en) && d.defs.length === 1) d.en = d.en; // Schreibweise lassen, wie eingegeben
   }
-  if(tr.status === 'fulfilled') d.de = tr.value.slice(0,4);
+  if(tr.status === 'fulfilled'){ d.alts = tr.value.slice(0,6); d.de = d.alts.slice(0,2); }
   if(d.ex){ try{ d.exDe = (await translate(d.ex))[0] || ''; }catch(e){} }
   const offline = dict.status === 'rejected' && tr.status === 'rejected' && !navigator.onLine;
   if(offline) note = 'Keine Internetverbindung – trag die Übersetzung selbst ein, das Wort wird trotzdem gespeichert.';
@@ -799,9 +907,9 @@ async function doLookupDe(word, enChoice){
   let d, note = '';
   if(!en){ d = emptyData(''); note = NO_EN; }
   else ({ d, note } = await lookupData(en));
-  d.de = uniqI([word, ...d.de]).slice(0, 4);
+  d.alts = uniqI([word, ...(d.alts||[])]).slice(0, 6); d.de = [word];
   if(!ui.lookup || ui.lookup.word !== word) return;
-  ui.lookup = { status:'done', word, lang:'de', alts:cands, data:d, note };
+  ui.lookup = { status:'done', word, lang:'de', alts:cands, data:d, note, deText:word, enText:d.en };
   if(ui.screen === 'add') render();
 }
 async function doLookup(raw){
@@ -811,7 +919,7 @@ async function doLookup(raw){
   ui.lookup = {status:'loading', word}; render();
   const { d, note } = await lookupData(word);
   if(!ui.lookup || ui.lookup.word !== word) return;
-  ui.lookup = {status:'done', word, data:d, note};
+  ui.lookup = {status:'done', word, data:d, note, deText:d.de.join(', ')};
   if(ui.screen === 'add') render();
 }
 
@@ -858,7 +966,7 @@ function queueAdd(text){
     added++;
   }
   save();
-  toast(added ? `${added} Wörter werden nachgeschlagen${skipped ? ` · ${skipped} übersprungen (schon vorhanden)` : ''}` : (skipped ? 'Alle Wörter sind schon vorhanden' : 'Keine Wörter erkannt'));
+  toast(added ? `${added} ${added === 1 ? 'Wort wird' : 'Wörter werden'} nachgeschlagen${skipped ? ` · ${skipped} übersprungen (schon vorhanden)` : ''}` : (skipped ? 'Alle Wörter sind schon vorhanden' : 'Keine Wörter erkannt'));
   processQueue();
 }
 const inflight = new Set();
@@ -875,7 +983,7 @@ function processQueue(){
       const cur = (db.queue||[]).find(x => x.id === q.id); if(!cur) return;
       if(d.en && cur.en && norm(d.en) !== norm(cur.en)) return;  // inzwischen anderes Wort gewählt → neu nachschlagen
       cur.data = d; cur.note = note; cur.status = 'done';
-      if(cur.lang === 'de'){ if(!cur.deTouched) cur.deText = uniqI([cur.src, ...d.de]).slice(0, 3).join(', '); }
+      if(cur.lang === 'de'){ d.alts = uniqI([cur.src, ...(d.alts||[])]).slice(0, 6); if(!cur.deTouched) cur.deText = cur.src; }
       else { if(!cur.deUser && !cur.deTouched) cur.deText = d.de.join(', '); if(cur.deUser) cur.data.de = cur.deUser; }
       save();
     }).catch(() => {
@@ -888,10 +996,10 @@ function processQueue(){
 function queueHead(){
   const Q = db.queue||[], ready = Q.filter(queueReady).length, loading = Q.filter(q => q.status === 'loading').length;
   return `<div class="row between" style="align-items:center">
-      <div><h2>Vorschläge prüfen</h2><p class="small muted" style="margin-top:2px">${Q.length} Wörter${loading ? ` · ${loading} werden nachgeschlagen` : ''}</p></div>
+      <div><h2>Vorschläge prüfen</h2><p class="small muted" style="margin-top:2px">${Q.length} ${Q.length === 1 ? 'Wort' : 'Wörter'}${loading ? ` · ${loading} werden nachgeschlagen` : ''}</p></div>
       <button class="link" data-act="qClear">Alle verwerfen</button>
     </div>
-    <button class="btn full" data-act="qAcceptAll" ${ready ? '' : 'disabled'}>${ready ? `Alle ${ready} übernehmen` : 'Alle übernehmen'}</button>`;
+    <button class="btn full" data-act="qAcceptAll" ${ready ? '' : 'disabled'}>${ready === 1 ? 'Übernehmen' : ready ? `Alle ${ready} übernehmen` : 'Alle übernehmen'}</button>`;
 }
 function queueReady(q){ return q.status === 'done' && String(q.deText||'').trim() && String(q.en||'').trim(); }
 function queueCard(q){
@@ -910,8 +1018,11 @@ function queueCard(q){
     ${enPicker(q.alts, q.en, 'qAlt', q.id)}
     <input class="input" id="qen-${q.id}" data-qen="${q.id}" value="${esc(q.en)}" autocapitalize="none" spellcheck="false" placeholder="englisches Wort" style="height:46px;font-size:16px">
     <label class="small" style="font-weight:600;color:#3A3B42" for="qde-${q.id}">` : `<label class="sr" for="qde-${q.id}">`}${isDe ? 'Deutsch' : `Deutsch für ${esc(q.en)}`}</label>
+    ${deChips(d.alts, q.deText, 'q:' + q.id)}
     <input class="input" id="qde-${q.id}" data-qde="${q.id}" value="${esc(q.deText)}" placeholder="deutsche Bedeutung(en), mit Komma getrennt" style="height:46px;font-size:16px">
     ${def ? `<p class="small muted" style="line-height:1.45">${esc(def)}</p>` : ''}
+    ${(d.senses||[]).length > 1 ? `<button class="link" style="align-self:flex-start;min-height:36px" data-act="qSenses" data-id="${q.id}" aria-expanded="${!!q.showSenses}">${q.showSenses ? 'Bedeutungen ausblenden' : `Bedeutung ändern (${d.senses.length})`}</button>
+      ${q.showSenses ? senseList(d, 'q:' + q.id) : ''}` : ''}
     ${d.ex ? `<div class="ctx" style="padding:10px 12px"><p class="small" style="font-weight:500;line-height:1.45">${esc(d.ex)}</p>${d.exDe ? `<p class="small muted" style="font-style:italic;line-height:1.45">${esc(d.exDe)}</p>` : ''}</div>` : ''}
     <button class="btn line" style="height:44px" data-act="qAccept" data-id="${q.id}">${ico('check',18,'style="vertical-align:-4px;margin-right:6px"')}Übernehmen</button>`}
   </div>`;
@@ -1080,6 +1191,7 @@ function renderQuiz(){
         ${T.value ? `<p class="small" style="color:#DADAE0">Deine Antwort: <b style="${T.res.ok ? '' : 'text-decoration:line-through'}">${esc(T.value)}</b></p>` : ''}
         <p style="font-size:17px;font-weight:600">${esc(q.accept.join(', '))}</p>
         <p class="small" style="color:#DADAE0;line-height:1.5">${esc(q.explain)}</p>
+        ${q.w.note ? `<p class="small" style="color:var(--amber);line-height:1.5"><b>Merkhilfe:</b> ${esc(q.w.note)}</p>` : ''}
         ${nextBtn}</div>`
       : `<form id="typeForm" class="stack" style="gap:10px">
         <label class="sr" for="typeIn">Deine Antwort</label>
@@ -1088,7 +1200,7 @@ function renderQuiz(){
         <button class="btn full" type="button" style="height:48px;background:transparent;border:1px solid #44444C" data-act="typeSkip">Weiß ich nicht</button>
       </form><div style="flex:1"></div>`;
   } else if(q.kind === 'flip'){
-    body = Q.revealed ? `<div class="fb"><p class="label" style="color:var(--dark-muted)">Bedeutung</p><p style="font-size:22px;font-weight:700">${esc(q.answer)}</p>${q.w.ex?`<p class="small" style="color:#DADAE0;line-height:1.5">„${esc(q.w.ex)}“</p>`:''}</div>
+    body = Q.revealed ? `<div class="fb"><p class="label" style="color:var(--dark-muted)">Bedeutung</p><p style="font-size:22px;font-weight:700">${esc(q.answer)}</p>${q.w.ex?`<p class="small" style="color:#DADAE0;line-height:1.5">„${esc(q.w.ex)}“</p>`:''}${q.w.note ? `<p class="small" style="color:var(--amber);line-height:1.5"><b>Merkhilfe:</b> ${esc(q.w.note)}</p>` : ''}</div>
       ${answered ? `<button class="btn amber full" style="height:52px;border-radius:26px" data-act="next">${Q.i < Q.qs.length-1 ? 'Weiter' : 'Ergebnis ansehen'}</button>`
       : `<div class="row" style="gap:10px"><button class="btn full" style="background:#1E4A31;border:1.5px solid var(--good);height:52px" data-act="flip" data-ok="1">Gewusst</button><button class="btn full" style="background:#57211C;border:1.5px solid var(--bad);height:52px" data-act="flip" data-ok="0">Nicht gewusst</button></div>`}`
       : `<button class="btn amber full" style="height:52px;border-radius:26px" data-act="reveal">Aufdecken</button>`;
@@ -1102,6 +1214,7 @@ function renderQuiz(){
       <div style="flex:1"></div>
       ${answered ? `<div class="fb"><p style="font-size:18px;font-weight:700;color:${Q.results[Q.i]?'var(--good)':'var(--bad)'}">${Q.results[Q.i]?'Richtig!':'Nicht ganz.'}</p>
         <p class="small" style="color:#DADAE0;line-height:1.5">${esc(q.explain)}</p>
+        ${q.w.note ? `<p class="small" style="color:var(--amber);line-height:1.5"><b>Merkhilfe:</b> ${esc(q.w.note)}</p>` : ''}
         <button class="btn amber full" style="height:52px;border-radius:26px" data-act="next">${Q.i < Q.qs.length-1 ? 'Weiter' : 'Ergebnis ansehen'}</button></div>` : ''}`;
   }
   el.innerHTML = `<div class="overlay"><div class="in">
@@ -1195,7 +1308,8 @@ function renderCards(){
         <p class="small muted">${esc(front)}</p>
         <p style="font-size:30px;font-weight:700;line-height:1.2;letter-spacing:-.4px">${esc(back)}</p>
         ${frontEn ? '' : (w.ipa ? `<p class="muted">${esc(w.ipa)}</p>` : '')}
-        ${w.ex ? `<div class="ctx" style="text-align:left;width:100%;margin-top:6px"><p class="small" style="font-weight:500;line-height:1.45">${esc(w.ex)}</p>${w.exDe ? `<p class="small muted" style="font-style:italic;line-height:1.45">${esc(w.exDe)}</p>` : ''}</div>` : ''}`
+        ${w.ex ? `<div class="ctx" style="text-align:left;width:100%;margin-top:6px"><p class="small" style="font-weight:500;line-height:1.45">${esc(w.ex)}</p>${w.exDe ? `<p class="small muted" style="font-style:italic;line-height:1.45">${esc(w.exDe)}</p>` : ''}</div>` : ''}
+        ${w.note ? `<div class="memo" style="text-align:left;width:100%">${esc(w.note)}</div>` : ''}`
       : `
         <p style="font-size:36px;font-weight:700;line-height:1.15;letter-spacing:-.5px">${esc(front)}</p>
         ${frontEn && w.ipa ? `<p class="muted">${esc(w.ipa)}</p>` : ''}
@@ -1313,11 +1427,16 @@ const ACT = {
   },
   bkImport: () => { if(!parseBackup(ui.bkText)) return; importBackup(ui.bkText); closeModal(); },
   filter: d => { ui.filter = d.f; render(); },
+  sortOpen: () => {
+    ui.modal = 'sort';
+    openModal(`<div class="row between"><h2>Sortieren</h2><button class="link" style="color:var(--muted);display:flex;align-items:center" data-act="modalClose" aria-label="Schließen">${ico('x',22)}</button></div>
+      <div class="stack" style="gap:2px">${SORTS.map(([k,l]) => `<button class="sortopt" data-act="sortSet" data-s="${k}" aria-pressed="${sortDef()[0] === k}">${l}${sortDef()[0] === k ? ico('check',18,'stroke-width="2.6"') : ''}</button>`).join('')}</div>`);
+  },
+  sortSet: d => { db.settings.sort = d.s; save(); closeModal(); render(); },
   quiz: () => startQuiz(),
   snooze: () => { hideBanner(); S().times.push(Date.now() + 15*60000); save(); syncNotifications(); toast('Okay – in 15 Minuten nochmal'); },
   samples: () => { let n = 0; SAMPLES.forEach(s => { if(!findWord(s.en)){ db.words.push({...makeWord(s), created:Date.now() - (n++)*1000}); } }); save(); toast(`${n} Beispielwörter geladen`); render(); syncNotifications(); },
   speak: d => speak(d.w, d.audio),
-  editDe: () => { ui.editDe = true; render(); const i = document.getElementById('deEdit'); if(i) i.focus(); },
   del: () => {
     if(!ui.delArm){ ui.delArm = true; render(); return; }
     db.words = db.words.filter(w => w.id !== ui.detail); save(); syncNotifications(); toast('Wort gelöscht'); go('words');
@@ -1371,6 +1490,68 @@ const ACT = {
   addMode: d => { ui.addMode = d.m; render(); },
   inLang: d => { db.settings.inLang = d.l; ui.lookup = null; save(); render(); },
   pickEn: d => { const L = ui.lookup; if(L && L.lang === 'de') doLookupDe(L.word, d.en); },
+  deChip: d => {
+    const m = modelOf(d.ctx); if(!m) return;
+    const cur = splitDe(m.de), k = d.v.toLowerCase();
+    m.de = (cur.some(x => x.toLowerCase() === k) ? cur.filter(x => x.toLowerCase() !== k) : [...cur, d.v]).join(', ');
+    m.refresh();
+  },
+  sensePick: d => {
+    const m = modelOf(d.ctx); if(!m) return;
+    const changed = applySense(m.d, Number(d.i));
+    m.refresh();
+    if(changed) translateExample(m.d, () => {
+      const t = document.getElementById('exDeIn');
+      if(m.exArea){ if(t && document.activeElement !== t){ t.value = m.d.exDe; t.placeholder = ''; } }
+      else m.refresh();
+    });
+  },
+  editOpen: d => {
+    const w = db.words.find(x => x.id === d.id); if(!w) return;
+    ui.form = { id:w.id, data:wordToData(w), deText:w.de.join(', '), reloading:false }; ui.resetArm = false;
+    go('edit', { detail:w.id });
+  },
+  editCancel: () => { ui.form = null; if(history.state && history.state.screen === 'edit') history.back(); else go('detail', { detail:ui.detail }); },
+  editSave: () => {
+    const F = ui.form, w = F && db.words.find(x => x.id === F.id); if(!w) return;
+    const d = F.data, en = String(d.en||'').trim().replace(/\s+/g,' '), de = splitDe(F.deText);
+    if(!en){ toast('Bitte das englische Wort eintragen'); document.getElementById('fEn').focus(); return; }
+    if(!de.length){ toast('Bitte mindestens eine deutsche Bedeutung eintragen'); document.getElementById('deIn').focus(); return; }
+    const other = findWord(en); if(other && other.id !== w.id){ toast(`„${en}“ gibt es schon in deiner Liste`); return; }
+    Object.assign(w, { en, de, alts:d.alts||[], ipa:d.ipa||'', pos:d.pos||'', def:d.def||'', defs:d.defs||[], ex:String(d.ex||'').trim(), exDe:String(d.exDe||'').trim(),
+      syn:d.syn||[], audio:d.audio||'', senses:d.senses||[], sense:d.sense||0, note:String(d.note||'').trim() });
+    save(); toast('Gespeichert'); ui.form = null;
+    if(history.state && history.state.screen === 'edit') history.back(); else go('detail', { detail:w.id });
+  },
+  editReload: async () => {
+    const F = ui.form; if(!F || F.reloading) return;
+    const en = String(F.data.en||'').trim(); if(!en){ toast('Bitte zuerst das englische Wort eintragen'); return; }
+    F.reloading = true; render();
+    const { d:n, note } = await lookupData(en);
+    if(ui.form !== F) return;
+    F.reloading = false;
+    const d = F.data;
+    if(!n.senses.length && !n.alts.length){ render(); toast(note || 'Nichts gefunden'); return; }
+    const keepDef = d.def;
+    if(n.senses.length) d.senses = n.senses;
+    d.ipa = n.ipa || d.ipa; d.audio = n.audio || d.audio; d.syn = n.syn.length ? n.syn : d.syn;
+    d.alts = uniqI([...splitDe(F.deText), ...n.alts]);
+    const idx = d.senses.findIndex(s => s.def === keepDef);
+    if(idx >= 0){ d.sense = idx; }
+    else if(d.senses.length){
+      const ex0 = d.ex, exDe0 = d.exDe;
+      applySense(d, 0);
+      if(ex0){ d.ex = ex0; d.exDe = exDe0; }      // eigenen Beispielsatz behalten – über die Bedeutungskarten änderbar
+    }
+    render(); toast(d.senses.length > 1 ? `${d.senses.length} Bedeutungen geladen – wähle die passende` : 'Aus dem Wörterbuch neu geladen');
+  },
+  resetProgress: () => {
+    if(!ui.resetArm){ ui.resetArm = true; render(); return; }
+    const w = db.words.find(x => ui.form && x.id === ui.form.id); if(!w) return;
+    Object.assign(w, { box:0, right:0, wrong:0, tested:0, lastTested:0 }); db.mistakes = (db.mistakes||[]).filter(id => id !== w.id);
+    ui.resetArm = false; save(); toast('Lernstand zurückgesetzt'); render();
+  },
+  qSenses: d => { const q = (db.queue||[]).find(x => x.id === d.id); if(!q) return; q.showSenses = !q.showSenses; updateQueueCard(q.id, true); },
   qAlt: d => {
     const q = (db.queue||[]).find(x => x.id === d.id); if(!q) return;
     q.en = d.en; q.status = 'loading'; q.note = ''; save(); updateQueueCard(q.id, true); updateQueueHead(); processQueue();
@@ -1390,7 +1571,7 @@ const ACT = {
     const ready = (db.queue||[]).filter(queueReady);
     ready.forEach(acceptQueued); save(); syncNotifications();
     const left = (db.queue||[]).length;
-    toast(`${ready.length} Wörter gespeichert${left ? ` · ${left} noch offen` : ''}`); render();
+    toast(`${ready.length} ${ready.length === 1 ? 'Wort' : 'Wörter'} gespeichert${left ? ` · ${left} noch offen` : ''}`); render();
   },
   qClear: () => {
     if(!ui.qClearArm){ ui.qClearArm = true; toast('Nochmal tippen, um alle Vorschläge zu verwerfen'); setTimeout(() => { ui.qClearArm = false; }, 3000); return; }
@@ -1426,33 +1607,34 @@ document.addEventListener('submit', e => {
   }
   if(e.target.id === 'lookupForm'){ const v = document.getElementById('wordIn').value; document.getElementById('wordIn').blur(); doLookup(v); }
   if(e.target.id === 'saveForm'){
-    const d = ui.lookup && ui.lookup.data; if(!d) return;
-    const de = document.getElementById('deIn').value.split(/[,;]/).map(s => s.trim()).filter(Boolean);
+    const L = ui.lookup, d = L && L.data; if(!d) return;
+    const de = splitDe(L.deText);
     if(!de.length){ toast('Bitte mindestens eine deutsche Bedeutung eintragen'); document.getElementById('deIn').focus(); return; }
-    const ex = document.getElementById('exDeIn');
-    const enIn = document.getElementById('enIn');
     let base = d;
-    if(enIn){
-      const en = enIn.value.trim().replace(/\s+/g,' ');
-      if(!en){ toast('Bitte das englische Wort eintragen'); enIn.focus(); return; }
+    if(L.lang === 'de'){
+      const en = String(L.enText != null ? L.enText : d.en).trim().replace(/\s+/g,' ');
+      if(!en){ toast('Bitte das englische Wort eintragen'); const i = document.getElementById('enIn'); if(i) i.focus(); return; }
       if(findWord(en)){ toast(`„${en}“ ist schon in deiner Liste`); return; }
       if(norm(en) !== norm(d.en)) base = { ...emptyData(en) };  // selbst geändert: Wörterbuch-Daten passen nicht mehr
     }
-    const w = makeWord({...base, de, exDe: ex && base === d ? ex.value.trim() : base.exDe});
+    const w = makeWord({ ...base, de, alts: d.alts });
     db.words.push(w); save(); syncNotifications(); toast(`„${w.en}“ gespeichert`);
     ui.lookup = null; render();
     const i = document.getElementById('wordIn'); if(i) i.focus();
-  }
-  if(e.target.id === 'deForm'){
-    const w = db.words.find(x => x.id === ui.detail);
-    const de = document.getElementById('deEdit').value.split(/[,;]/).map(s => s.trim()).filter(Boolean);
-    if(w && de.length){ w.de = de; save(); }
-    ui.editDe = false; render();
   }
 });
 document.addEventListener('input', e => {
   if(e.target.id === 'q'){ ui.q = e.target.value; document.getElementById('rows').innerHTML = wordRows(); }
   if(e.target.id === 'bkIn') bkCheck(e.target.value);
+  const fld = e.target.dataset && e.target.dataset.field;
+  if(fld){
+    const ctx = e.target.dataset.ctx, m = modelOf(ctx), v = e.target.value;
+    if(m){
+      if(fld === 'de') m.de = v;
+      else if(fld === 'en'){ if(ctx === 'add') ui.lookup.enText = v; else m.d.en = v; }
+      else m.d[fld] = v;
+    }
+  }
   if(e.target.dataset && e.target.dataset.qen){
     const q = (db.queue||[]).find(x => x.id === e.target.dataset.qen);
     if(q){ q.en = e.target.value; save(); const h = document.getElementById('qhead'); if(h) h.innerHTML = queueHead(); }
