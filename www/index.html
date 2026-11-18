@@ -282,18 +282,95 @@ async function checkUpdate(manual){
     if(!r.ok) throw { code:'net' };
     const j = await r.json();
     const apk = (j.assets||[]).find(a => /\.apk$/i.test(a.name));
-    db.update = { lastCheck:Date.now(), latest:String(j.tag_name||'').replace(/^v/,''), url: (!BUILD.token && apk) ? apk.browser_download_url : j.html_url, page:j.html_url, dismissed: db.update && db.update.dismissed };
+    db.update = { ...(db.update||{}), lastCheck:Date.now(), latest:String(j.tag_name||'').replace(/^v/,''),
+      apk: apk && !BUILD.token ? apk.browser_download_url : '', url: (!BUILD.token && apk) ? apk.browser_download_url : j.html_url, page:j.html_url, notes: String(j.body||'') };
     save();
     await loadVersion();
     ui.upd = updateAvailable() ? 'available' : verNum(appVersion) ? 'current' : 'dev';
     if(manual && ui.upd === 'current') toast('Du hast die neueste Version');
+    if(ui.upd === 'available' && (manual || (!ui.quiz && !ui.cards && document.getElementById('modal').hidden))) showUpdateModal();
   }catch(e){
     ui.upd = e && e.code === 'noaccess' ? 'noaccess' : 'error';
     if(manual) toast(ui.upd === 'noaccess' ? 'Kein Zugriff auf die GitHub-Releases' : 'Update-Prüfung fehlgeschlagen – Internet?');
   }
   if(!ui.quiz) render();
 }
-function autoCheckUpdate(){ if(NATIVE && (!db.update || Date.now() - (db.update.lastCheck||0) > 6*36e5)) checkUpdate(false); }
+/* Automatisch bei jedem 10. Öffnen: App-Start oder Rückkehr nach mindestens 5 Minuten */
+const UPDATE_EVERY = 10, AWAY_MIN = 5;
+function countOpen(){
+  if(!NATIVE) return;
+  db.update = db.update || {};
+  db.update.opens = (db.update.opens || 0) + 1; save();
+  if(db.update.opens % UPDATE_EVERY === 0) checkUpdate(false);
+}
+/* „Was ist neu“: die ersten 2–3 Punkte aus dem Release-Text */
+function whatsNew(body){
+  const lines = String(body||'').split(/\r?\n/), out = []; let cur = null;
+  for(const l of lines){
+    if(/^\s*---/.test(l)) break;
+    if(/^\s*[-•*]\s+/.test(l)){ if(cur) out.push(cur); cur = l.replace(/^\s*[-•*]\s+/, '').trim(); }
+    else if(cur && /^\s{2,}\S/.test(l)) cur += ' ' + l.trim();
+    else if(cur){ out.push(cur); cur = null; }
+  }
+  if(cur) out.push(cur);
+  if(!out.length){ const t = lines.map(x => x.trim()).find(Boolean); if(t && !/^APK am Handy/i.test(t)) out.push(t); }
+  return out.slice(0, 3).map(x => x.length > 110 ? x.slice(0, 107) + '…' : x);
+}
+/* Update-Fenster: fragen → herunterladen → installieren */
+const UPD = PLUG('AppUpdater');
+function showUpdateModal(){ ui.updState = { s:'ask' }; ui.modal = 'update'; renderUpdate(); }
+function renderUpdate(){
+  const u = db.update || {}, st = ui.updState || { s:'ask' }, news = whatsNew(u.notes);
+  const head = `<div><p class="label">Update verfügbar</p><h2 style="font-size:22px;margin-top:4px">Version ${esc(u.latest)}</h2><p class="small muted" style="margin-top:2px">Du hast ${esc(appVersion)} · deine Vokabeln bleiben erhalten</p></div>`;
+  const newsHtml = news.length ? `<div class="ctx"><p class="label">Was ist neu</p>${news.map(n => `<p class="small" style="line-height:1.45">• ${esc(n)}</p>`).join('')}</div>` : '';
+  let body = '';
+  if(st.s === 'ask') body = `${newsHtml}<div class="row" style="gap:10px"><button class="btn line" data-act="updLater">Später</button><button class="btn" style="flex:1" data-act="updInstall">Installieren</button></div>`;
+  else if(st.s === 'download') body = `${newsHtml}<div class="stack" style="gap:8px"><div class="row between"><p class="small" style="font-weight:600">Wird heruntergeladen …</p><p class="small muted" id="updPct">${st.pct || 0} %</p></div>
+      <div class="bar" style="height:8px"><i id="updBar" style="width:${st.pct || 0}%"></i></div></div>`;
+  else if(st.s === 'perm') body = `<div class="hint-box" style="background:var(--new-bg);color:var(--new-fg);border-radius:14px;padding:12px 14px;line-height:1.5;font-size:14px">
+      <b>Einmalig nötig:</b> Erlaube „Vokabeln“, Apps zu installieren. Tippe auf „Einstellungen öffnen“, schalte <i>„Aus dieser Quelle zulassen“</i> ein und komm zurück – die Installation startet dann von selbst.</div>
+      <div class="row" style="gap:10px"><button class="btn line" data-act="updLater">Abbrechen</button><button class="btn" style="flex:1" data-act="updPerm">Einstellungen öffnen</button></div>`;
+  else if(st.s === 'started') body = `<p class="okline ok">${ico('check',18,'stroke-width="2.6"')} Download fertig</p>
+      <p class="small muted" style="line-height:1.5">Bestätige im Android-Fenster mit <b>„Installieren“</b> bzw. <b>„Aktualisieren“</b>. Danach startet die neue Version.</p>
+      <div class="row" style="gap:10px"><button class="btn line" data-act="updLater">Schließen</button><button class="btn" style="flex:1" data-act="updRetryInstall">Installation erneut öffnen</button></div>`;
+  else if(st.s === 'error') body = `<p class="okline bad">${ico('x',18,'stroke-width="2.6"')} ${esc(st.msg || 'Das hat nicht geklappt')}</p>
+      <div class="row" style="gap:10px"><button class="btn line" data-act="updLater">Später</button><button class="btn" style="flex:1" data-act="updInstall">Nochmal versuchen</button></div>`;
+  openModal(head + body);
+}
+async function startInstall(){
+  const u = db.update || {};
+  if(!UPD || !u.apk){ closeModal(); openUrl(u.apk || u.page); return; }   // Rückfall: Download im Browser
+  ui.updState = { s:'download', pct:0 }; renderUpdate();
+  let h = null;
+  try{ h = await UPD.addListener('progress', e => {
+    ui.updState.pct = e.percent;
+    const b = document.getElementById('updBar'), t = document.getElementById('updPct');
+    if(b) b.style.width = e.percent + '%'; if(t) t.textContent = e.percent + ' %';
+  }); }catch(_){}
+  try{ const r = await UPD.download({ url:u.apk }); ui.updPath = r.path; }
+  catch(e){ ui.updState = { s:'error', msg:'Download fehlgeschlagen – Internet?' }; renderUpdate(); return; }
+  finally{ try{ h && h.remove && h.remove(); }catch(_){} }
+  await doInstall();
+}
+async function doInstall(){
+  try{
+    const r = await UPD.install({ path: ui.updPath });
+    ui.updState = r && r.needsPermission ? { s:'perm' } : { s:'started' };
+  }catch(e){ ui.updState = { s:'error', msg:'Installation konnte nicht gestartet werden' }; }
+  renderUpdate();
+}
+async function resumeInstall(){   // zurück aus den Einstellungen: Erlaubnis da → weiter
+  if(!UPD || !ui.updState || ui.updState.s !== 'perm' || ui.modal !== 'update') return;
+  try{ const r = await UPD.canInstall(); if(r && r.allowed) await doInstall(); }catch(_){}
+}
+/* Einmaliger Hinweis nach einem Update */
+function afterUpdateNotice(){
+  if(!NATIVE || !verNum(appVersion)) return;
+  db.update = db.update || {};
+  const last = db.update.lastVersion;
+  if(last && verNum(last) && isNewer(verNum(appVersion), verNum(last))) setTimeout(() => toast(`Update auf ${appVersion} installiert ✓`, 4000), 600);
+  if(last !== appVersion){ db.update.lastVersion = appVersion; save(); }
+}
 function openUrl(url){ if(url) window.location.href = url; }  // in der Android-App öffnet das den Browser
 async function nativePermission(ask){
   if(!LN) return 'denied';
@@ -398,11 +475,6 @@ home(){
   <div class="row between">
     <div><p class="small muted">${DAYS[d.getDay()]}, ${d.getDate()}. ${MONTHS[d.getMonth()]}</p><h1 style="margin-top:2px">${greeting()}</h1></div>
   </div>
-  ${NATIVE && updateAvailable() && db.update.dismissed !== db.update.latest ? `
-  <div class="card stack" style="gap:12px;border-color:var(--accent);background:var(--accent-soft)">
-    <div><p style="font-weight:700;color:var(--accent-ink)">Neue Version ${esc(db.update.latest)} verfügbar</p><p class="small" style="color:var(--accent-ink);margin-top:2px">Du hast ${esc(appVersion)}. Das Update installiert sich über die alte Version, deine Vokabeln bleiben.</p></div>
-    <div class="row" style="gap:10px"><button class="btn" style="flex:1" data-act="updOpen">Herunterladen</button><button class="btn line" data-act="updLater">Später</button></div>
-  </div>` : ''}
   <div class="grid3">
     <div class="stat"><b>${db.words.length}</b><span>Vokabeln</span></div>
     <div class="stat"><b>${db.stats.streak||0}</b><span>Tage Serie</span></div>
@@ -602,7 +674,7 @@ function appCard(){
     <div class="row between"><h2>App</h2><p class="small muted">Version ${esc(appVersion)}</p></div>
     <p class="small ${updateAvailable() ? '' : 'muted'}" style="line-height:1.5;${updateAvailable() ? 'color:var(--accent-ink);font-weight:600' : ''}">${line}</p>
     <div class="row wrap" style="gap:8px">
-      ${updateAvailable() ? `<button class="btn" data-act="updOpen">Herunterladen</button>` : ''}
+      ${updateAvailable() ? `<button class="btn" data-act="updOpen">Installieren</button>` : ''}
       <button class="btn line" data-act="updCheck" ${st === 'checking' ? 'disabled' : ''}>Nach Updates suchen</button>
     </div>
   </div>`;
@@ -1194,7 +1266,7 @@ function checkDue(){
 
 /* ============ Toast ============ */
 let toastT;
-function toast(msg){ const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2400); }
+function toast(msg, ms){ const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), ms || 2400); }
 
 /* ============ Aktionen ============ */
 const ACT = {
@@ -1315,8 +1387,11 @@ const ACT = {
     ui.qClearArm = false; db.queue = []; save(); render();
   },
   updCheck: () => checkUpdate(true),
-  updOpen: () => openUrl(db.update && db.update.url),
-  updLater: () => { db.update.dismissed = db.update.latest; save(); render(); },
+  updOpen: () => showUpdateModal(),
+  updLater: () => { ui.updState = null; closeModal(); },
+  updInstall: () => startInstall(),
+  updPerm: async () => { try{ await UPD.openInstallSettings(); }catch(_){} },
+  updRetryInstall: () => doInstall(),
   quizClose: () => { if(history.state && history.state.quiz) history.back(); else closeQuiz(); }
 };
 document.addEventListener('click', e => {
@@ -1647,7 +1722,7 @@ setInterval(checkDue, 30000);
 document.addEventListener('visibilitychange', () => { if(!document.hidden){ checkDue(); if(!ui.quiz) render(); } });
 setTimeout(checkDue, 1500);
 processQueue();
-loadVersion().then(() => { if(!ui.quiz) render(); autoCheckUpdate(); });
+loadVersion().then(() => { if(!ui.quiz) render(); afterUpdateNotice(); countOpen(); });
 if(NATIVE){
   // Beim ersten Start einmal um Erlaubnis für Benachrichtigungen fragen
   (async () => {
@@ -1671,7 +1746,13 @@ if(NATIVE){
     });
     APP.addListener('appUrlOpen', e => handleOpenUrl(e && e.url));
     if(APP.getLaunchUrl) APP.getLaunchUrl().then(r => { if(r && r.url) handleOpenUrl(r.url); }).catch(() => {});
-    APP.addListener('resume', () => { checkDue(); syncNotifications(); autoCheckUpdate(); if(!ui.quiz) render(); });
+    APP.addListener('pause', () => { ui.pausedAt = Date.now(); });
+    APP.addListener('resume', () => {
+      checkDue(); syncNotifications(); resumeInstall();
+      if(ui.pausedAt && Date.now() - ui.pausedAt >= AWAY_MIN * 60000) countOpen();
+      ui.pausedAt = 0;
+      if(!ui.quiz && !ui.cards && ui.modal !== 'update' && ui.modal !== 'share' && ui.modal !== 'backup') render();
+    });
   }
 }
 if(!NATIVE && 'serviceWorker' in navigator && location.protocol.startsWith('http')){

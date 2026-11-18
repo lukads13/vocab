@@ -64,6 +64,12 @@ jobs:
           name: Vokabeln-APK
           path: Vokabeln-*.apk
 
+      - name: Release-Text aus der Commit-Beschreibung
+        run: |
+          git log -1 --pretty=%B | grep -v -E '^(Co-Authored-By|Claude-Session):' > release-notes.md
+          printf '\n---\nAPK am Handy herunterladen und öffnen – oder in der App unter Einstellungen → „Nach Updates suchen“. Updates installieren sich über die alte Version, deine Vokabeln bleiben erhalten.\n' >> release-notes.md
+          cat release-notes.md
+
       - name: Release mit APK veröffentlichen
         uses: softprops/action-gh-release@v2
         with:
@@ -72,5 +78,4 @@ jobs:
           target_commitish: ${{ github.sha }}
           make_latest: true
           files: Vokabeln-*.apk
-          body: |
-            APK am Handy herunterladen und öffnen. Ein Update installiert sich einfach über die alte Version – deine Vokabeln bleiben erhalten.
+          body_path: release-notes.md
